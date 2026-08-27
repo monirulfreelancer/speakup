@@ -16,9 +16,13 @@ const envSchema = z.object({
   NEXTAUTH_SECRET: z.string().min(32, "must be at least 32 characters — generate with `openssl rand -base64 32`"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
-  // Optional until Phase 4 (AI partner mode).
+  // AI partner mode. Keys stay optional so the app boots without them —
+  // the practice API returns a clear 503 instead.
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  AI_PROVIDER: z.enum(["anthropic", "openai"]).default("anthropic"),
+  AI_MODEL: z.string().optional(),
+  DAILY_MINUTES_QUOTA: z.coerce.number().int().positive().default(60),
 });
 
 const parsed = envSchema.safeParse(process.env);
