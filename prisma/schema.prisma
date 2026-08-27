@@ -1,0 +1,24 @@
+// SpeakUp — database schema
+//
+// Phase 0: a single placeholder model so `prisma generate` and the migration
+// pipeline can be exercised end to end. The real schema lands in Phase 1.
+//
+// Connection URLs live in prisma.config.ts — that moved there in Prisma 7.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // url is configured in prisma.config.ts
+}
+
+// Placeholder — replaced by the real schema in Phase 1.
+model HealthCheck {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("health_checks")
+}
