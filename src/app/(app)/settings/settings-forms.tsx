@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { subscribeVoices } from "@/lib/speech/voices";
 
 /*
  * Client-side settings controls. Each one updates its local state
@@ -200,22 +201,12 @@ export function TtsControls({
   const saved = useRef({ voice: initialVoice, rate: initialRate });
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-
-    function load() {
-      const all = window.speechSynthesis.getVoices();
-      // English voices first — this is an English-practice app.
+    // Shared loader from the speech layer — handles the async voiceschanged
+    // event and sorts English voices first.
+    return subscribeVoices((all) => {
       const english = all.filter((v) => v.lang.toLowerCase().startsWith("en"));
-      const list = (english.length > 0 ? english : all).map((v) => ({
-        name: v.name,
-        lang: v.lang,
-      }));
-      setVoices(list);
-    }
-
-    load(); // some browsers have voices immediately …
-    window.speechSynthesis.addEventListener("voiceschanged", load); // … others load async
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
+      setVoices((english.length > 0 ? english : all).map((v) => ({ name: v.name, lang: v.lang })));
+    });
   }, []);
 
   function persist(nextVoice: string | null, nextRate: number) {
