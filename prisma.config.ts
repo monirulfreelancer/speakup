@@ -21,6 +21,8 @@ export default defineConfig({
 
   migrations: {
     path: "prisma/migrations",
+    // Local development only — never runs in the production container.
+    seed: "tsx prisma/seed.ts",
   },
 
   datasource: {
