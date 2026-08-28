@@ -11,3 +11,7 @@ src/generated
 Dockerfile
 .dockerignore
 docker-compose.yml
+
+# The realtime service is its own deployable with its own toolchain —
+# the web image must never contain or compile it.
+realtime

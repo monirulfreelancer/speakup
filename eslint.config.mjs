@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The realtime service lints/builds with its own toolchain.
+    "realtime/**",
   ]),
 ]);
 
