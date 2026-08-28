@@ -49,3 +49,40 @@ The image applies `prisma migrate deploy` on start (see `docker-entrypoint.sh`) 
 6. Add the domain and let Coolify provision HTTPS.
 
 Migrations run automatically on every container start; they are idempotent, so redeploys with no schema changes are a no-op.
+
+## Realtime service (`realtime/`)
+
+Human-mode matching runs in a separate, self-contained Node service —
+Express + Socket.io + plain `pg`. It never imports from the Next.js app and
+never runs migrations; the web app owns the schema, and the service reads and
+writes the matching tables (`match_queue`, `matches`, `blocks`, plus reads of
+`topics`) with SQL. The socket event contract lives in `realtime/src/events.ts`
+and is mirrored byte-for-byte at `src/lib/realtime/events.ts` — change one,
+change both.
+
+Local dev:
+
+```bash
+cd realtime
+npm install
+DATABASE_URL="postgresql://speakup:speakup@localhost:5434/speakup" \
+NEXTAUTH_SECRET="<same value as the web app's .env>" \
+npm run dev
+```
+
+Environment variables:
+
+| Variable | Required | What it is |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | Same Postgres the web app uses |
+| `NEXTAUTH_SECRET` | yes | Same secret as the web app — verifies the handshake JWT minted by `/api/realtime/token` |
+| `PORT` | no | Listen port (default 4000) |
+| `MATCH_TIMEOUT_SECONDS` | no | Queue wait before `queue:timeout` (default 90) |
+| `ALLOWED_ORIGIN` | no | CORS origin for the socket handshake — set to the web app's public URL in production (default `http://localhost:3000`) |
+
+Deploying on Coolify: create a **second application** from this same repo with
+the **build context set to `realtime/`** (Dockerfile `realtime/Dockerfile`),
+port **4000**, healthcheck path `/health`. Give it the same `DATABASE_URL` and
+`NEXTAUTH_SECRET` as the web app, set `ALLOWED_ORIGIN` to the web app's public
+URL, give it its own domain, and set that domain as `NEXT_PUBLIC_REALTIME_URL`
+on the web app. The web app's own service stays untouched.

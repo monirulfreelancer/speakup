@@ -280,3 +280,59 @@ model Event {
   @@index([userId, type, createdAt(sort: Desc)])
   @@map("events")
 }
+
+// ---------------------------------------------------------------------------
+// Human mode: matching queue (Phase 12)
+//
+// These tables are ALSO read and written by the realtime service (realtime/)
+// via plain SQL over `pg`. The web app remains the single owner of the schema
+// and all migrations — the service must never migrate. Column renames here
+// therefore require a matching change in realtime/src.
+// ---------------------------------------------------------------------------
+
+enum QueueStatus {
+  WAITING
+  MATCHED
+  CANCELLED
+  EXPIRED
+}
+
+model MatchQueue {
+  id            String      @id @default(cuid())
+  userId        String      @map("user_id")
+  level         CefrLevel
+  allowedLevels String[]    @map("allowed_levels")
+  status        QueueStatus @default(WAITING)
+  enqueuedAt    DateTime    @default(now()) @map("enqueued_at")
+  expiresAt     DateTime    @map("expires_at")
+  matchId       String?     @map("match_id")
+
+  @@index([status, level, enqueuedAt])
+  @@map("match_queue")
+}
+
+model Match {
+  id              String    @id @default(cuid())
+  roomId          String    @unique @map("room_id")
+  userAId         String    @map("user_a_id")
+  userBId         String    @map("user_b_id")
+  topicId         String?   @map("topic_id")
+  startedAt       DateTime  @default(now()) @map("started_at")
+  endedAt         DateTime? @map("ended_at")
+  endReason       String?   @map("end_reason")
+  durationSeconds Int       @default(0) @map("duration_seconds")
+
+  @@index([userAId])
+  @@index([userBId])
+  @@map("matches")
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String   @map("blocker_id")
+  blockedId String   @map("blocked_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([blockerId, blockedId])
+  @@map("blocks")
+}

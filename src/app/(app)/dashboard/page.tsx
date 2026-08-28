@@ -25,6 +25,7 @@ export default async function DashboardPage() {
       photoUrl: true,
       cefrLevel: true,
       onboardedAt: true,
+      isAdult: true,
       stats: true,
     },
   });
@@ -83,18 +84,37 @@ export default async function DashboardPage() {
             <span className="block text-sm opacity-80">Practice any time, no pressure</span>
           </span>
         </Link>
-        <div
-          aria-disabled
-          className="flex min-h-32 flex-col justify-between rounded-2xl border-2 border-dashed p-5 opacity-60"
-        >
-          <span className="text-3xl" aria-hidden>
-            🧑‍🤝‍🧑
-          </span>
-          <span>
-            <span className="block text-lg font-bold">Talk with a Person</span>
-            <span className="block text-sm text-muted-foreground">Coming soon</span>
-          </span>
-        </div>
+        {user.isAdult ? (
+          <Link
+            href="/practice/human"
+            className="flex min-h-32 flex-col justify-between rounded-2xl border-2 p-5 transition-colors hover:bg-accent"
+          >
+            <span className="text-3xl" aria-hidden>
+              🧑‍🤝‍🧑
+            </span>
+            <span>
+              <span className="block text-lg font-bold">Talk with a Person</span>
+              <span className="block text-sm text-muted-foreground">
+                Get matched with another learner
+              </span>
+            </span>
+          </Link>
+        ) : (
+          <div
+            aria-disabled
+            className="flex min-h-32 flex-col justify-between rounded-2xl border-2 border-dashed p-5 opacity-60"
+          >
+            <span className="text-3xl" aria-hidden>
+              🧑‍🤝‍🧑
+            </span>
+            <span>
+              <span className="block text-lg font-bold">Talk with a Person</span>
+              <span className="block text-sm text-muted-foreground">
+                Partner practice is 18+ — your AI partner is always here
+              </span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Stats strip */}
