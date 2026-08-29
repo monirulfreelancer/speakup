@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { DoorOpen, Plus, Users } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { getSocket } from "@/lib/realtime/socket";
 import type { LobbyRoomSummary } from "@/lib/realtime/events";
 import { createRoom, joinRoom } from "@/server/actions/rooms";
@@ -10,17 +10,23 @@ import { MAX_ROOM_SIZE } from "@/lib/rooms";
 import { Avatar } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Sheet } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { CefrLevel } from "@/generated/prisma/enums";
 
 /*
- * The room lobby, above the people list on Home.
+ * Rooms on Home: a secondary feature that must not push the people list —
+ * the main thing — below the fold.
  *
- * The first list is server-rendered; after that the socket keeps it live,
- * so a room filling up or emptying is visible without a refresh.
+ * With no live rooms this renders NOTHING but the "Talk with someone"
+ * heading row, whose small "+ Room" button is the always-present entry
+ * point. With rooms live, a single sideways-scrolling strip of compact
+ * cards appears above that heading.
+ *
+ * This component owns the heading row because the "+ Room" button shares
+ * the create Sheet's state with the strip; splitting them would mean
+ * lifting all of this into the page for no gain.
  */
 
 const LEVELS: CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
@@ -53,7 +59,7 @@ export function RoomLobby({
     const onChanged = ({ room }: { room: LobbyRoomSummary }) => {
       setRooms((prev) => {
         const without = prev.filter((r) => r.id !== room.id);
-        // A room that has emptied or closed drops out of the lobby.
+        // A room that has emptied or closed drops out of the strip.
         return room.live ? [room, ...without] : without;
       });
     };
@@ -102,12 +108,77 @@ export function RoomLobby({
   }
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg">Rooms</h2>
-        <Button size="sm" onClick={() => setCreating(true)}>
+    <>
+      {rooms.length > 0 && (
+        <section className="space-y-1.5" aria-label="Open rooms">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-muted">Rooms</p>
+          {/*
+            Bleeds to the screen edges so cards can scroll off naturally, and
+            the fixed card height keeps the strip from resizing as people
+            join or leave — the list below never shifts under a reader.
+          */}
+          <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
+            {rooms.map((room) => {
+              const full = room.members.length >= room.maxSize;
+              return (
+                <article
+                  key={room.id}
+                  className="flex h-20 w-50 shrink-0 snap-start items-center gap-2 rounded-2xl border-2 border-line bg-surface p-2.5"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-extrabold">{room.title}</span>
+                      <Badge level={room.level} size="sm" />
+                    </div>
+                    <div className="flex items-center gap-1.5 pt-1">
+                      <div className="flex -space-x-1.5">
+                        {room.members.slice(0, 3).map((member) => (
+                          <Avatar
+                            key={member.userId}
+                            user={{
+                              id: member.userId,
+                              displayName: member.name,
+                              avatarUpdatedAt: member.avatarUpdatedAt,
+                            }}
+                            size={20}
+                            className="ring-2 ring-surface"
+                          />
+                        ))}
+                      </div>
+                      <span className="flex items-center gap-0.5 text-xs font-bold text-muted">
+                        <Users className="size-3" aria-hidden />
+                        {room.members.length}/{room.maxSize}
+                      </span>
+                    </div>
+                  </div>
+
+                  {full ? (
+                    <span className="shrink-0 rounded-xl bg-surface-raised px-3 py-2 text-xs font-bold text-muted">
+                      Full
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => join(room.id)}
+                      disabled={pending}
+                      className="btn-3d shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-on-primary [--btn-edge:var(--primary-dark)] active:btn-3d-press disabled:opacity-50"
+                    >
+                      Join
+                    </button>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Always present: the heading row, with the quiet room entry point. */}
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <h2 className="text-lg">Talk with someone</h2>
+        <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
           <Plus className="size-4" aria-hidden />
-          Start a room
+          Room
         </Button>
       </div>
 
@@ -115,69 +186,6 @@ export function RoomLobby({
         <p className="rounded-2xl border-2 border-danger bg-surface p-3 text-center text-sm font-semibold text-danger">
           {error}
         </p>
-      )}
-
-      {rooms.length === 0 ? (
-        <EmptyState
-          icon={DoorOpen}
-          title="No rooms open right now"
-          description="Start one and other learners can drop in."
-          action={
-            <Button onClick={() => setCreating(true)}>
-              <Plus className="size-4" aria-hidden />
-              Start a room
-            </Button>
-          }
-        />
-      ) : (
-        <ul className="space-y-2">
-          {rooms.map((room) => {
-            const full = room.members.length >= room.maxSize;
-            return (
-              <li
-                key={room.id}
-                className="flex items-center gap-3 rounded-2xl border-2 border-line bg-surface p-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-2">
-                    <span className="truncate font-extrabold">{room.title}</span>
-                    <Badge level={room.level} size="sm" />
-                  </div>
-                  <p className="truncate text-sm text-muted">{room.topic}</p>
-                  <div className="flex items-center gap-2 pt-1.5">
-                    <div className="flex -space-x-2">
-                      {room.members.slice(0, 4).map((member) => (
-                        <Avatar
-                          key={member.userId}
-                          user={{
-                            id: member.userId,
-                            displayName: member.name,
-                            avatarUpdatedAt: member.avatarUpdatedAt,
-                          }}
-                          size={24}
-                          className="ring-2 ring-surface"
-                        />
-                      ))}
-                    </div>
-                    <span className="flex items-center gap-1 text-xs font-bold text-muted">
-                      <Users className="size-3.5" aria-hidden />
-                      {room.members.length}/{room.maxSize}
-                    </span>
-                  </div>
-                </div>
-
-                <Button
-                  size="sm"
-                  variant={full ? "secondary" : "primary"}
-                  disabled={full || pending}
-                  onClick={() => join(room.id)}
-                >
-                  {full ? "Full" : "Join"}
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
       )}
 
       <Sheet open={creating} onClose={() => setCreating(false)} title="Start a room">
@@ -265,6 +273,6 @@ export function RoomLobby({
           </div>
         </div>
       </Sheet>
-    </section>
+    </>
   );
 }

@@ -158,7 +158,6 @@ export default async function DashboardPage({
             topics={topicRows.map((t) => t.title)}
           />
 
-          <h2 className="pt-1 text-lg">Talk with someone</h2>
           <PeopleDirectory
             // Remount on any filter change so the loaded pages reset cleanly.
             key={`${q ?? ""}|${level ?? ""}`}
