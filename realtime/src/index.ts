@@ -135,6 +135,35 @@ io.on("connection", (rawSocket) => {
     await dequeue(user.id).catch(() => {});
   });
 
+  /*
+   * Explicit room membership.
+   *
+   * This is the fix for invites vanishing: sockets used to enter the room
+   * only through room:ready during matching, so a direct visit, a page
+   * reload or a socket reconnect left the peer outside the room and the
+   * server's presence check found nobody. The call screen now emits
+   * room:join on mount AND on every reconnect, and waits for room:joined
+   * before it will let anyone press Call.
+   *
+   * Idempotent: socket.join on a room already joined is a no-op.
+   */
+  socket.on("room:join", async ({ roomId }) => {
+    if (!(await guardRoom(roomId, "room:join"))) return;
+
+    void socket.join(roomId);
+    socket.data.roomId = roomId;
+
+    const sockets = await io.in(roomId).fetchSockets();
+    const peers = sockets.filter((s) => s.id !== socket.id);
+    console.log(
+      `[signal] room:join room=${roomId} user=${user.id} roomSize=${sockets.length} peerPresent=${peers.length > 0}`,
+    );
+
+    socket.emit("room:joined", { roomId, peerPresent: peers.length > 0 });
+    // Tell whoever was already here that their partner just arrived.
+    socket.to(roomId).emit("room:peer", { roomId, present: true });
+  });
+
   socket.on("room:ready", async ({ roomId }) => {
     // Presence ack: the peer reached the call screen. Join it to the room so
     // signaling can reach it even if this socket reconnected since matching.
@@ -243,6 +272,16 @@ io.on("connection", (rawSocket) => {
     socket.to(roomId).emit("room:partner_left");
     void socket.leave(roomId);
     await endMatchByRoom(roomId, "left").catch(() => {});
+  });
+
+  // `disconnecting` fires while socket.rooms is still populated; by
+  // `disconnect` it has been cleared, so presence must be announced here.
+  socket.on("disconnecting", () => {
+    for (const roomId of socket.rooms) {
+      if (roomId === socket.id) continue;
+      console.log(`[signal] room:peer(absent) room=${roomId} user=${user.id}`);
+      socket.to(roomId).emit("room:peer", { roomId, present: false });
+    }
   });
 
   socket.on("disconnect", async () => {

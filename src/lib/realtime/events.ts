@@ -53,6 +53,13 @@ export interface ClientToServerEvents {
   "queue:leave": () => void;
   "room:ready": (payload: { roomId: string }) => void;
   "room:leave": (payload: { roomId: string }) => void;
+  /**
+   * Explicit, idempotent room membership. The ONLY reliable way into the
+   * socket.io room: room:ready fires during matching only, so a direct
+   * visit, a reload or a socket reconnect would otherwise leave the peer
+   * outside the room and every invite would be dropped.
+   */
+  "room:join": (payload: { roomId: string }) => void;
   "rtc:offer": (payload: SdpPayload) => void;
   "rtc:answer": (payload: SdpPayload) => void;
   "rtc:ice": (payload: IcePayload) => void;
@@ -76,6 +83,10 @@ export interface ServerToClientEvents {
   }) => void;
   "queue:timeout": () => void;
   "room:partner_left": () => void;
+  /** Confirms the join, and says whether the other member is here right now. */
+  "room:joined": (payload: { roomId: string; peerPresent: boolean }) => void;
+  /** Sent to the other member whenever this room's presence changes. */
+  "room:peer": (payload: { roomId: string; present: boolean }) => void;
   "rtc:offer": (payload: SdpPayload) => void;
   "rtc:answer": (payload: SdpPayload) => void;
   "rtc:ice": (payload: IcePayload) => void;

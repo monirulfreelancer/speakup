@@ -63,6 +63,15 @@ const ENDED_COPY: Record<EndedReason, string> = {
 
 const INVITE_TIMEOUT_MS = 45_000;
 
+/*
+ * Socket tracing for call debugging. Event names and roomIds only — never
+ * SDP bodies or ICE candidate strings.
+ */
+const RTC_DEBUG = process.env.NEXT_PUBLIC_RTC_DEBUG === "1";
+function sigLog(direction: "->" | "<-", event: string, roomId?: string): void {
+  if (RTC_DEBUG) console.log(`[signal ${direction}]`, event, roomId ? `room=${roomId}` : "");
+}
+
 function formatClock(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
@@ -92,6 +101,10 @@ export function CallScreen(props: Props) {
   const [stats, setStats] = useState<CallStats | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  // Room state: nothing may be sent before the server confirms the join, and
+  // Call stays disabled until the partner is actually connected.
+  const [joined, setJoined] = useState(false);
+  const [peerPresent, setPeerPresent] = useState(false);
 
   const callRef = useRef<VoiceCall | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
@@ -195,6 +208,7 @@ export function CallScreen(props: Props) {
     ringtoneRef.current = new Ringtone();
 
     const onInvite = () => {
+      sigLog("<-", "call:invite", props.roomId);
       // Glare: both pressed Call. The smaller user id stays the caller; the
       // other side flips to incoming and accepts immediately, so the call
       // still connects instead of deadlocking on two waiting screens.
@@ -212,23 +226,27 @@ export function CallScreen(props: Props) {
     };
 
     const onAccept = () => {
+      sigLog("<-", "call:accept", props.roomId);
       if (phaseRef.current !== "outgoing") return;
       clearInviteTimer();
       beginMedia(true);
     };
 
     const onDecline = () => {
+      sigLog("<-", "call:decline", props.roomId);
       if (phaseRef.current !== "outgoing") return;
       finish("declined");
     };
 
     const onCancel = () => {
+      sigLog("<-", "call:cancel", props.roomId);
       if (phaseRef.current !== "incoming") return;
       stopRinging();
       setPhase("idle");
     };
 
     const onCallError = ({ code }: { code: string }) => {
+      sigLog("<-", `call:error(${code})`, props.roomId);
       if (code !== "peer-absent") return;
       if (phaseRef.current === "outgoing" || phaseRef.current === "connecting") {
         finish("peer-absent");
@@ -255,15 +273,61 @@ export function CallScreen(props: Props) {
     socket.on("rtc:answer", onAnswer);
     socket.on("rtc:ice", onIce);
 
-    // Join the room immediately so an invite can reach us while we sit idle.
-    const announce = () => socket.emit("room:ready", { roomId: props.roomId });
-    if (socket.connected) announce();
-    else {
-      socket.once("connect", announce);
-      socket.connect();
-    }
+    const onJoined = ({ peerPresent: present }: { peerPresent: boolean }) => {
+      sigLog("<-", "room:joined", props.roomId);
+      setJoined(true);
+      setPeerPresent(present);
+    };
+
+    const onPeer = ({ present }: { present: boolean }) => {
+      sigLog("<-", `room:peer(${present ? "present" : "absent"})`, props.roomId);
+      setPeerPresent(present);
+      if (present) return;
+      // The partner vanished. Ringing or connected states must react now
+      // rather than waiting for a timeout.
+      if (phaseRef.current === "outgoing") finish("peer-absent");
+      else if (phaseRef.current === "incoming") {
+        stopRinging();
+        setPhase("idle");
+      } else if (phaseRef.current === "connecting" || phaseRef.current === "connected") {
+        finish("partner-ended");
+      }
+    };
+
+    socket.on("room:joined", onJoined);
+    socket.on("room:peer", onPeer);
+
+    /*
+     * Join on mount AND on every reconnect. Membership used to depend on
+     * room:ready during matching, so a reload or a dropped socket left this
+     * peer outside the room and every invite was silently discarded.
+     */
+    const joinRoom = () => {
+      sigLog("->", "room:join", props.roomId);
+      socket.emit("room:join", { roomId: props.roomId });
+    };
+    const onConnect = () => {
+      if (RTC_DEBUG) console.log("[socket] connected id=", socket.id);
+      setJoined(false);
+      joinRoom();
+    };
+    const onDisconnect = (reason: string) => {
+      if (RTC_DEBUG) console.log("[socket] disconnected:", reason);
+      setJoined(false);
+      setPeerPresent(false);
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+
+    if (socket.connected) joinRoom();
+    else socket.connect();
 
     return () => {
+      socket.off("room:joined", onJoined);
+      socket.off("room:peer", onPeer);
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
       socket.off("call:invite", onInvite);
       socket.off("call:accept", onAccept);
       socket.off("call:decline", onDecline);
@@ -292,6 +356,7 @@ export function CallScreen(props: Props) {
   function callPartner() {
     const socket = getSocket();
     setPhase("outgoing");
+    sigLog("->", "call:invite", props.roomId);
     socket.emit("call:invite", { roomId: props.roomId });
     clearInviteTimer();
     inviteTimerRef.current = setTimeout(() => {
@@ -302,23 +367,27 @@ export function CallScreen(props: Props) {
 
   function cancelOutgoing() {
     clearInviteTimer();
+    sigLog("->", "call:cancel", props.roomId);
     getSocket().emit("call:cancel", { roomId: props.roomId });
     setPhase("idle");
   }
 
   function acceptIncoming() {
     stopRinging();
+    sigLog("->", "call:accept", props.roomId);
     getSocket().emit("call:accept", { roomId: props.roomId });
     beginMedia(false);
   }
 
   function declineIncoming() {
     stopRinging();
+    sigLog("->", "call:decline", props.roomId);
     getSocket().emit("call:decline", { roomId: props.roomId });
     setPhase("idle");
   }
 
   function hangUp() {
+    sigLog("->", "call:end", props.roomId);
     getSocket().emit("call:end", { roomId: props.roomId, reason: "hangup" });
     finish("you-ended");
   }
@@ -366,7 +435,12 @@ export function CallScreen(props: Props) {
         </div>
 
         <p className="text-sm tabular-nums text-muted-foreground" aria-live="polite">
-          {phase === "idle" && "Ready when you are"}
+          {phase === "idle" &&
+            (peerPresent
+              ? "Ready when you are"
+              : joined
+                ? "Waiting for your partner to arrive…"
+                : "Connecting to the room…")}
           {phase === "outgoing" && `Calling ${props.partnerName}…`}
           {phase === "incoming" && "Incoming call"}
           {phase === "connecting" &&
@@ -398,7 +472,11 @@ export function CallScreen(props: Props) {
 
         {phase === "idle" && (
           <div className="grid gap-2">
-            <Button className="h-14 w-full rounded-full text-base font-medium" onClick={callPartner}>
+            <Button
+              className="h-14 w-full rounded-full text-base font-medium"
+              onClick={callPartner}
+              disabled={!joined || !peerPresent}
+            >
               📞 Call {props.partnerName}
             </Button>
             <Button
