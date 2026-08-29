@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { InstallHint } from "@/components/pwa/install-hint";
-import { Bot, Globe, Mic, Users } from "lucide-react";
+import { Bot, Globe, Users } from "lucide-react";
+import { Logo } from "@/components/logo";
 
 /*
  * Public landing page. Server-rendered so it indexes: the copy, headings and
@@ -29,13 +30,13 @@ export const metadata: Metadata = {
     siteName: "SpeakUp",
     title: TITLE,
     description: DESCRIPTION,
-    images: [{ url: "/icons/icon-512.png", width: 512, height: 512, alt: "SpeakUp" }],
+    images: [{ url: "/og.png", width: 1000, height: 420, alt: "SpeakUp" }],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
-    images: ["/icons/icon-512.png"],
+    images: ["/og.png"],
   },
 };
 
@@ -101,9 +102,7 @@ export default async function LandingPage() {
       <div className="flex min-h-dvh flex-col">
         <header className="mx-auto flex w-full max-w-3xl items-center justify-between p-4">
           <span className="flex items-center gap-2 text-lg font-extrabold">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-on-primary">
-              <Mic className="size-5" aria-hidden />
-            </span>
+            <Logo size={36} title={null} />
             SpeakUp
           </span>
           <Link href="/login" className="text-sm font-medium underline underline-offset-4">
@@ -114,9 +113,7 @@ export default async function LandingPage() {
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-12">
           {/* Hero */}
           <section className="space-y-5 py-10 text-center sm:py-16">
-            <span className="mx-auto flex size-20 items-center justify-center rounded-3xl bg-primary text-on-primary">
-              <Mic className="size-10" aria-hidden />
-            </span>
+            <Logo size={80} className="mx-auto" />
             <h1 className="text-3xl sm:text-5xl">
               Get comfortable speaking English
             </h1>

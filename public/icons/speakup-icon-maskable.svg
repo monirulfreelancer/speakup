@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="SpeakUp">
+  <defs>
+    <linearGradient id="su-mask" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4ADE80"/>
+      <stop offset="1" stop-color="#16A34A"/>
+    </linearGradient>
+  </defs>
+  <!-- full bleed: the launcher may crop this to a circle -->
+  <rect width="512" height="512" fill="url(#su-mask)"/>
+  <!-- artwork scaled to 72% and centred so it survives a circular crop -->
+  <g transform="translate(256 256) scale(0.72) translate(-256 -256)">
+    <path fill="#FFFFFF" d="
+      M 152 104 H 360 a 72 72 0 0 1 72 72 v 144 a 72 72 0 0 1 -72 72 H 250
+      c -28 0 -40 34 -78 46 a 12 12 0 0 1 -15 -15 c 10 -24 9 -33 3 -33
+      a 72 72 0 0 1 -72 -70 v -144 a 72 72 0 0 1 72 -72 z"/>
+    <g fill="#15803D">
+      <rect x="164" y="222" width="30" height="52" rx="15"/>
+      <rect x="212" y="192" width="30" height="112" rx="15"/>
+      <rect x="260" y="164" width="30" height="168" rx="15"/>
+      <rect x="308" y="200" width="30" height="96" rx="15"/>
+      <rect x="356" y="228" width="30" height="40" rx="15"/>
+    </g>
+  </g>
+</svg>

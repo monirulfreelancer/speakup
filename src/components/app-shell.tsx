@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Home, Settings as SettingsIcon, Mic } from "lucide-react";
+import { Logo } from "@/components/logo";
 import type { LucideIcon } from "lucide-react";
 import { IncomingCallProvider } from "@/components/call/incoming-call-provider";
 import { ToastProvider } from "@/components/ui/toast";
@@ -49,9 +50,7 @@ export function AppShell({
         {!immersive && (
           <aside className="hidden w-60 shrink-0 border-r-2 border-line bg-surface md:flex md:flex-col">
             <Link href="/dashboard" className="flex items-center gap-2 p-5 text-xl font-extrabold">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-on-primary">
-                <Mic className="size-5" aria-hidden />
-              </span>
+              <Logo size={36} title={null} />
               SpeakUp
             </Link>
             <nav className="flex flex-col gap-1 p-3">

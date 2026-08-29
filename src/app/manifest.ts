@@ -3,7 +3,7 @@ import { env } from "@/lib/env";
 
 /*
  * Web app manifest (served at /manifest.webmanifest). TWA-ready: standalone
- * display, portrait, a maskable 512 icon with safe-area padding, and
+ * display, portrait, maskable icons with safe-area padding, and
  * shortcuts — the same manifest a Bubblewrap/PWABuilder Android wrap reads.
  */
 
@@ -29,10 +29,16 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#f7f9fc",
     background_color: "#f7f9fc",
     icons: [
-      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/icons/icon-256.png", sizes: "256x256", type: "image/png" },
-      { src: "/icons/icon-384.png", sizes: "384x384", type: "image/png" },
-      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      // Separate files, not the same art reused: a maskable icon is drawn
+      // with padding so Android can crop it to any shape without clipping.
+      {
+        src: "/icons/icon-maskable-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "maskable",
+      },
       {
         src: "/icons/icon-maskable-512.png",
         sizes: "512x512",

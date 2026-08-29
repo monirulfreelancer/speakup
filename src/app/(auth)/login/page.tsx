@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Mic } from "lucide-react";
+import { Logo } from "@/components/logo";
 import { auth, googleEnabled } from "@/lib/auth";
 import { AuthFlow } from "./auth-flow";
 
@@ -34,9 +34,7 @@ export default async function LoginPage({
     <main className="flex min-h-dvh items-center justify-center bg-background p-6">
       <div className="w-full max-w-sm space-y-6">
         <div className="space-y-2 text-center">
-          <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary text-on-primary">
-            <Mic className="size-7" aria-hidden />
-          </span>
+          <Logo size={56} className="mx-auto" />
           <h1 className="text-2xl">Welcome to SpeakUp</h1>
           <p className="text-sm text-muted">Sign in, or create an account in one step.</p>
         </div>

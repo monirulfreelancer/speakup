@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
-import { Share, PlusSquare, Smartphone, ShieldCheck } from "lucide-react";
+import { Share, PlusSquare, ShieldCheck } from "lucide-react";
+import { Logo } from "@/components/logo";
 import { env } from "@/lib/env";
 import { getApkInfo } from "@/lib/apk";
 import { detectPlatform } from "@/lib/platform";
@@ -37,9 +38,7 @@ export default async function DownloadPage() {
   return (
     <main className="mx-auto w-full max-w-md space-y-8 p-6">
       <header className="space-y-3 text-center">
-        <span className="mx-auto flex size-16 items-center justify-center rounded-3xl bg-primary text-on-primary">
-          <Smartphone className="size-8" aria-hidden />
-        </span>
+        <Logo size={64} className="mx-auto" />
         <h1 className="text-3xl">Get SpeakUp on your phone</h1>
         <p className="text-muted">
           One tap to open, full screen, no browser bar. It is the same SpeakUp you already use.
