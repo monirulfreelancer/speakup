@@ -126,7 +126,7 @@ export default async function LandingPage() {
             </p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row">
               <Link
-                href="/signup"
+                href="/login"
                 className="btn-3d flex min-h-14 items-center justify-center rounded-2xl bg-primary px-8 text-lg font-bold text-on-primary [--btn-edge:var(--primary-dark)] active:btn-3d-press"
               >
                 Get started
@@ -241,7 +241,7 @@ export default async function LandingPage() {
             <h2 className="text-2xl">Ready to say something?</h2>
             <p className="pt-2 opacity-80">Your first conversation takes about five minutes.</p>
             <Link
-              href="/signup"
+              href="/login"
               className="mt-4 inline-flex h-12 items-center justify-center rounded-lg bg-background px-6 font-medium text-foreground hover:opacity-90"
             >
               Get started

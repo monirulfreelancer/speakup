@@ -38,6 +38,13 @@ const envSchema = z.object({
     .optional()
     .transform((v) => v?.toLowerCase() === "true" || v === "1"),
 
+  /*
+   * Google sign-in. OPTIONAL: the app must boot without them, and the
+   * Google button simply is not rendered when either is missing.
+   */
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+
   // TURN (coturn) for WebRTC. All optional: without TURN_SECRET the app
   // falls back to STUN only, which works on most home networks and fails on
   // symmetric NAT — degraded, not broken, so it must never block boot.

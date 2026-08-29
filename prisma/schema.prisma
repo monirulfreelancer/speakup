@@ -66,9 +66,17 @@ enum ConsentType {
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
-  passwordHash String    @map("password_hash")
+  // Nullable: a Google-only account has no password. The credentials
+  // provider refuses to authenticate a user without one.
+  passwordHash String?   @map("password_hash")
   name         String
   photoUrl     String?   @map("photo_url")
+
+  // Required by the Auth.js Prisma adapter, which creates the user row on a
+  // first OAuth sign-in. `image` holds Google's URL; the real avatar is
+  // fetched from it once and stored in the Avatar table.
+  emailVerified DateTime? @map("email_verified")
+  image         String?
 
   // Filled during onboarding, so nullable until then. `onboardedAt` being
   // set is the signal that the wizard was completed.

@@ -13,8 +13,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     { url: `${base}/`, lastModified, changeFrequency: "monthly", priority: 1 },
-    { url: `${base}/signup`, lastModified, changeFrequency: "yearly", priority: 0.8 },
-    { url: `${base}/login`, lastModified, changeFrequency: "yearly", priority: 0.5 },
+    // Sign-in and sign-up are one page now.
+    { url: `${base}/login`, lastModified, changeFrequency: "yearly", priority: 0.8 },
     { url: `${base}/download`, lastModified, changeFrequency: "monthly", priority: 0.6 },
     { url: `${base}/guidelines`, lastModified, changeFrequency: "yearly", priority: 0.4 },
     { url: `${base}/privacy`, lastModified, changeFrequency: "yearly", priority: 0.4 },

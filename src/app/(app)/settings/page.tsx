@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
-import { auth, signOut } from "@/lib/auth";
+import { auth, googleEnabled, signOut } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { GoogleAccount } from "@/components/google-account";
 import { LogOut } from "lucide-react";
 import { InstallSettingsEntry } from "@/components/pwa/install-settings-entry";
 import { ProfileForm } from "@/components/profile-form";
@@ -26,6 +27,7 @@ export default async function SettingsPage() {
       bio: true,
       interests: true,
       avatarUpdatedAt: true,
+      accounts: { select: { provider: true } },
       cefrLevel: true,
       enforcementMode: true,
       onboardedAt: true,
@@ -88,6 +90,9 @@ export default async function SettingsPage() {
 
       <section className="space-y-3">
         <h2 className="text-lg">Account</h2>
+        {googleEnabled && (
+          <GoogleAccount connected={user.accounts.some((a) => a.provider === "google")} />
+        )}
         <UiLanguageSelect current={settings?.uiLanguage ?? "en"} />
         <NotificationsToggle initial={settings?.notificationsEnabled ?? false} />
         <InstallSettingsEntry />
