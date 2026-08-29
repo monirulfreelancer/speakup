@@ -47,6 +47,28 @@ export type CallEndReason = "hangup" | "failed" | "partner_left";
 /** Why a call:error came back: today only the peer being absent. */
 export type CallErrorCode = "peer-absent" | "busy";
 
+/** A person in a group room, as the lobby and room screen show them. */
+export type RoomMember = {
+  userId: string;
+  name: string;
+  level: CefrLevel | null;
+  avatarUpdatedAt: string | null;
+  isHost: boolean;
+};
+
+/** A live room as the lobby lists it. */
+export type LobbyRoomSummary = {
+  id: string;
+  title: string;
+  topic: string;
+  level: CefrLevel;
+  hostId: string;
+  maxSize: number;
+  members: RoomMember[];
+  /** Closed rooms arrive with live=false so the lobby can drop them. */
+  live: boolean;
+};
+
 /** client -> server */
 export interface ClientToServerEvents {
   /** Ask for the current online set and receive updates. */
@@ -77,6 +99,12 @@ export interface ClientToServerEvents {
    * handler is what used to end matches during ordinary navigation.
    */
   "call:abandon": (payload: { roomId: string }) => void;
+
+  /** Live lobby: the current room list, then a message per change. */
+  "lobby:subscribe": () => void;
+  /** Group rooms (part 1: membership only, no audio yet). */
+  "group:join": (payload: { roomId: string }) => void;
+  "group:leave": (payload: { roomId: string }) => void;
 }
 
 /** server -> client */
@@ -117,5 +145,10 @@ export interface ServerToClientEvents {
   /** To the CALLER's user room, so it lands wherever they navigated. */
   "call:declined": (payload: { roomId: string }) => void;
   "call:missed": (payload: { roomId: string }) => void;
+  "lobby:rooms": (payload: { rooms: LobbyRoomSummary[] }) => void;
+  "lobby:changed": (payload: { room: LobbyRoomSummary }) => void;
+  "group:joined": (payload: { roomId: string; members: RoomMember[] }) => void;
+  "group:member-joined": (payload: { roomId: string; member: RoomMember }) => void;
+  "group:member-left": (payload: { roomId: string; userId: string }) => void;
   error: (payload: { code: ErrorCode; message: string }) => void;
 }

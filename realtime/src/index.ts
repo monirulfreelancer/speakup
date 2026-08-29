@@ -7,6 +7,10 @@ import type { ClientToServerEvents, ServerToClientEvents } from "./events";
 import {
   checkRoomMembership,
   cleanupAbandonedOnStartup,
+  isRoomParticipant,
+  loadLobbyRooms,
+  loadRoom,
+  sweepRooms,
   markAnswered,
   sweepStaleMatches,
   endMatchByRoom,
@@ -16,7 +20,7 @@ import {
   openMatchElsewhere,
   touchLastSeen,
 } from "./matching";
-import type { CefrLevel } from "./events";
+import type { CefrLevel, LobbyRoomSummary, RoomMember } from "./events";
 
 /*
  * SpeakUp realtime service.
@@ -31,6 +35,37 @@ const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? "http://localhost:3000";
 
 /** Socket.io room that every presence subscriber joins. */
 const PRESENCE_ROOM = "presence:subscribers";
+
+/** Everyone watching the lobby. */
+const LOBBY_ROOM = "lobby:subscribers";
+
+/** Socket.io room name for a group practice room. */
+const groupRoom = (roomId: string) => `group:${roomId}`;
+
+/** The realtime row shapes carry level as a plain string; the contract wants CefrLevel. */
+function toSummary(row: {
+  id: string;
+  title: string;
+  topic: string;
+  level: string;
+  hostId: string;
+  maxSize: number;
+  members: { userId: string; name: string; level: string | null; avatarUpdatedAt: string | null; isHost: boolean }[];
+  live: boolean;
+}): LobbyRoomSummary {
+  return {
+    ...row,
+    level: row.level as CefrLevel,
+    members: row.members.map((m) => ({ ...m, level: (m.level as CefrLevel) ?? null })),
+  };
+}
+
+/** Tell every lobby watcher that one room changed (or closed). */
+async function broadcastRoom(io: import("socket.io").Server, roomId: string): Promise<void> {
+  const room = await loadRoom(roomId);
+  if (!room) return;
+  io.to(LOBBY_ROOM).emit("lobby:changed", { room: toSummary(room) });
+}
 
 /** Unanswered ring gives up here; the Match closes as no_answer. */
 const RING_TIMEOUT_MS = 45_000;
@@ -95,6 +130,52 @@ io.on("connection", (rawSocket) => {
   if (!wasOnline) {
     io.to(PRESENCE_ROOM).emit("presence:changed", { userId: user.id, online: true });
   }
+
+  socket.on("lobby:subscribe", async () => {
+    void socket.join(LOBBY_ROOM);
+    try {
+      const rooms = await loadLobbyRooms();
+      socket.emit("lobby:rooms", { rooms: rooms.map(toSummary) });
+    } catch (error) {
+      console.error("lobby:subscribe failed:", error instanceof Error ? error.message : error);
+    }
+  });
+
+  /*
+   * Group rooms. Membership is verified in the database before the socket
+   * joins, exactly like the one-to-one guard — a roomId in a payload is a
+   * claim, not proof.
+   */
+  socket.on("group:join", async ({ roomId }) => {
+    if (typeof roomId !== "string" || !roomId) return;
+    const member = await isRoomParticipant(roomId, user.id).catch(() => false);
+    if (!member) {
+      console.warn(`[group] rejected group:join room=${roomId} user=${user.id} (not a participant)`);
+      socket.emit("error", { code: "bad-request", message: "That room is not available." });
+      return;
+    }
+
+    void socket.join(groupRoom(roomId));
+    const room = await loadRoom(roomId);
+    if (!room) return;
+
+    console.log(`[group] group:join room=${roomId} user=${user.id} members=${room.members.length}`);
+    socket.emit("group:joined", { roomId, members: toSummary(room).members });
+
+    const me = toSummary(room).members.find((m) => m.userId === user.id);
+    if (me) socket.to(groupRoom(roomId)).emit("group:member-joined", { roomId, member: me });
+    await broadcastRoom(io, roomId);
+  });
+
+  socket.on("group:leave", async ({ roomId }) => {
+    if (typeof roomId !== "string" || !roomId) return;
+    console.log(`[group] group:leave room=${roomId} user=${user.id}`);
+    socket.to(groupRoom(roomId)).emit("group:member-left", { roomId, userId: user.id });
+    void socket.leave(groupRoom(roomId));
+    // The web app's leaveRoom action owns the database side; this only
+    // announces it, so the two never disagree about who left.
+    await broadcastRoom(io, roomId);
+  });
 
   socket.on("presence:subscribe", () => {
     void socket.join(PRESENCE_ROOM);
@@ -402,8 +483,19 @@ io.on("connection", (rawSocket) => {
 setInterval(() => {
   void (async () => {
     try {
-      const closed = await sweepStaleMatches([...socketsByUser.keys()]);
+      const online = [...socketsByUser.keys()];
+      const closed = await sweepStaleMatches(online);
       if (closed > 0) console.log(`[sweep] closed ${closed} stale match(es)`);
+
+      const [clearedParticipants, closedRooms] = await sweepRooms(online);
+      if (clearedParticipants > 0 || closedRooms > 0) {
+        console.log(
+          `[sweep] cleared ${clearedParticipants} room participant(s), closed ${closedRooms} room(s)`,
+        );
+        // The lobby must not keep showing rooms the sweep just emptied.
+        const rooms = await loadLobbyRooms();
+        io.to(LOBBY_ROOM).emit("lobby:rooms", { rooms: rooms.map(toSummary) });
+      }
     } catch (error) {
       console.error("[sweep] failed:", error instanceof Error ? error.message : error);
     }

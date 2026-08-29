@@ -5,10 +5,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { getDirectory } from "@/server/people";
+import { getLobbyRooms } from "@/server/rooms";
 import { Avatar } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
 import { StatTile } from "@/components/ui/stat-tile";
 import { PeopleDirectory } from "@/components/people-directory";
+import { RoomLobby } from "@/components/rooms/lobby";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 
 export const metadata = { title: "Home — SpeakUp" };
@@ -72,7 +74,7 @@ export default async function DashboardPage({
   if (!user) redirect("/login");
   if (!user.onboardedAt || !user.cefrLevel) redirect("/onboarding");
 
-  const [completed, directory] = await Promise.all([
+  const [completed, directory, rooms, topicRows] = await Promise.all([
     db.practiceSession.findMany({
       where: { userId: session.user.id, status: "COMPLETED" },
       select: { startedAt: true },
@@ -82,6 +84,12 @@ export default async function DashboardPage({
     user.isAdult
       ? getDirectory({ search: q, level, page: 0 })
       : Promise.resolve({ people: [], hasMore: false, total: 0 }),
+    user.isAdult ? getLobbyRooms() : Promise.resolve([]),
+    db.topic.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+      select: { title: true },
+    }),
   ]);
 
   const streak = streakFromDays(completed.map((s) => s.startedAt));
@@ -129,6 +137,27 @@ export default async function DashboardPage({
 
       {user.isAdult ? (
         <>
+          <RoomLobby
+            initialRooms={rooms.map((room) => ({
+              id: room.id,
+              title: room.title,
+              topic: room.topic,
+              level: room.level,
+              hostId: room.hostId,
+              maxSize: room.maxSize,
+              live: true,
+              members: room.participants.map((p) => ({
+                userId: p.id,
+                name: p.name,
+                level: null,
+                avatarUpdatedAt: p.avatarUpdatedAt?.toISOString() ?? null,
+                isHost: p.id === room.hostId,
+              })),
+            }))}
+            defaultLevel={user.cefrLevel}
+            topics={topicRows.map((t) => t.title)}
+          />
+
           <h2 className="pt-1 text-lg">Talk with someone</h2>
           <PeopleDirectory
             // Remount on any filter change so the loaded pages reset cleanly.

@@ -263,3 +263,147 @@ export async function cleanupAbandonedOnStartup(): Promise<number> {
   );
   return rowCount ?? 0;
 }
+
+/* -------------------------------------------------------------------------
+ * Group rooms
+ * ---------------------------------------------------------------------- */
+
+export type RoomMemberRow = {
+  userId: string;
+  name: string;
+  level: string | null;
+  avatarUpdatedAt: string | null;
+  isHost: boolean;
+};
+
+export type RoomSummaryRow = {
+  id: string;
+  title: string;
+  topic: string;
+  level: string;
+  hostId: string;
+  maxSize: number;
+  members: RoomMemberRow[];
+  live: boolean;
+};
+
+function toMember(row: {
+  user_id: string;
+  name: string;
+  cefr_level: string | null;
+  avatar_updated_at: Date | null;
+  host_id: string;
+}): RoomMemberRow {
+  return {
+    userId: row.user_id,
+    name: row.name,
+    level: row.cefr_level,
+    avatarUpdatedAt: row.avatar_updated_at ? new Date(row.avatar_updated_at).toISOString() : null,
+    isHost: row.user_id === row.host_id,
+  };
+}
+
+/** Every live room with its current members, for the lobby's first paint. */
+export async function loadLobbyRooms(): Promise<RoomSummaryRow[]> {
+  const { rows } = await pool.query(
+    `SELECT r.id, r.title, r.topic, r.level::text AS level, r.host_id, r.max_size,
+            p.user_id, u.name, u.cefr_level::text AS cefr_level, u.avatar_updated_at
+     FROM rooms r
+     JOIN room_participants p ON p.room_id = r.id AND p.left_at IS NULL
+     JOIN users u ON u.id = p.user_id
+     WHERE r.closed_at IS NULL
+     ORDER BY r.created_at DESC, p.joined_at`,
+  );
+
+  const byRoom = new Map<string, RoomSummaryRow>();
+  for (const row of rows) {
+    let room = byRoom.get(row.id);
+    if (!room) {
+      room = {
+        id: row.id,
+        title: row.title,
+        topic: row.topic,
+        level: row.level,
+        hostId: row.host_id,
+        maxSize: row.max_size,
+        members: [],
+        live: true,
+      };
+      byRoom.set(row.id, room);
+    }
+    room.members.push(toMember(row));
+  }
+  return [...byRoom.values()];
+}
+
+/** One room's current state, or a live:false stub once it is gone. */
+export async function loadRoom(roomId: string): Promise<RoomSummaryRow | null> {
+  const { rows } = await pool.query(
+    `SELECT r.id, r.title, r.topic, r.level::text AS level, r.host_id, r.max_size,
+            r.closed_at, p.user_id, u.name, u.cefr_level::text AS cefr_level, u.avatar_updated_at
+     FROM rooms r
+     LEFT JOIN room_participants p ON p.room_id = r.id AND p.left_at IS NULL
+     LEFT JOIN users u ON u.id = p.user_id
+     WHERE r.id = $1
+     ORDER BY p.joined_at`,
+    [roomId],
+  );
+  if (rows.length === 0) return null;
+
+  const first = rows[0];
+  const members = rows.filter((r) => r.user_id).map(toMember);
+  return {
+    id: first.id,
+    title: first.title,
+    topic: first.topic,
+    level: first.level,
+    hostId: first.host_id,
+    maxSize: first.max_size,
+    members,
+    live: first.closed_at === null && members.length > 0,
+  };
+}
+
+/** Membership gate for group sockets — the same shape as checkRoomMembership. */
+export async function isRoomParticipant(roomId: string, userId: string): Promise<boolean> {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM room_participants p
+     JOIN rooms r ON r.id = p.room_id
+     WHERE p.room_id = $1 AND p.user_id = $2 AND p.left_at IS NULL AND r.closed_at IS NULL
+     LIMIT 1`,
+    [roomId, userId],
+  );
+  return rows.length > 0;
+}
+
+/**
+ * Group-room half of the sweep: drop participants whose user has had no
+ * socket for over 60 seconds, then close rooms with nobody left for more
+ * than 2 minutes. Runs inside the existing sweep loop — one timer, not two.
+ *
+ * @returns [participants cleared, rooms closed]
+ */
+export async function sweepRooms(onlineUserIds: string[]): Promise<[number, number]> {
+  const cleared = await pool.query(
+    `UPDATE room_participants p
+     SET left_at = now()
+     FROM users u
+     WHERE p.left_at IS NULL
+       AND u.id = p.user_id
+       AND NOT (p.user_id = ANY($1::text[]))
+       AND COALESCE(u.last_seen_at, p.joined_at) < now() - interval '60 seconds'`,
+    [onlineUserIds],
+  );
+
+  const closed = await pool.query(
+    `UPDATE rooms r
+     SET closed_at = now(), close_reason = 'empty'
+     WHERE r.closed_at IS NULL
+       AND r.created_at < now() - interval '2 minutes'
+       AND NOT EXISTS (
+         SELECT 1 FROM room_participants p WHERE p.room_id = r.id AND p.left_at IS NULL
+       )`,
+  );
+
+  return [cleared.rowCount ?? 0, closed.rowCount ?? 0];
+}

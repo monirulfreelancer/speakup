@@ -408,3 +408,41 @@ model Avatar {
 
   @@map("avatars")
 }
+
+// ---------------------------------------------------------------------------
+// Group practice rooms
+// ---------------------------------------------------------------------------
+
+model Room {
+  id          String    @id @default(cuid())
+  title       String    @db.VarChar(60)
+  topic       String
+  level       CefrLevel
+  hostId      String    @map("host_id")
+  maxSize     Int       @default(5) @map("max_size")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  closedAt    DateTime? @map("closed_at")
+  closeReason String?   @map("close_reason")
+
+  participants RoomParticipant[]
+
+  @@index([closedAt, createdAt(sort: Desc)])
+  @@map("rooms")
+}
+
+model RoomParticipant {
+  id       String    @id @default(cuid())
+  roomId   String    @map("room_id")
+  userId   String    @map("user_id")
+  joinedAt DateTime  @default(now()) @map("joined_at")
+  leftAt   DateTime? @map("left_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  // NOTE: "one live row per (room, user)" is a PARTIAL unique index on
+  // left_at IS NULL, which Prisma cannot express — it is added by hand in
+  // the migration. This plain index just serves the membership lookups.
+  @@index([roomId, leftAt])
+  @@index([userId, leftAt])
+  @@map("room_participants")
+}
