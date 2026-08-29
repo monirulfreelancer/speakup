@@ -31,5 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "realtime"]
+  "exclude": ["node_modules", "realtime", "android"]
 }

@@ -15,3 +15,7 @@ docker-compose.yml
 # The realtime service is its own deployable with its own toolchain —
 # the web image must never contain or compile it.
 realtime
+
+# Android TWA project — built separately, never part of the web image
+# (public/downloads/speakup.apk is the served artifact and IS copied)
+android

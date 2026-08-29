@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // The realtime service lints/builds with its own toolchain.
     "realtime/**",
+    "android/**",
     // Generated service worker bundle (written by `serwist build`).
     "public/sw.js",
     "public/sw.js.map",

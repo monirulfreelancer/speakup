@@ -1,0 +1,57 @@
+{
+  "//": "HOST LIVES HERE AND ONLY HERE. When the custom domain is ready, change 'host' and 'webManifestUrl' (and nothing else), then follow android/README.md -> 'Rebuilding after a domain change'.",
+  "packageId": "io.speakup.app",
+  "host": "bfr6vef56ewkk6hcncswrzjz.207.244.232.199.sslip.io",
+  "name": "SpeakUp",
+  "launcherName": "SpeakUp",
+  "display": "standalone",
+  "themeColor": "#171717",
+  "themeColorDark": "#171717",
+  "navigationColor": "#171717",
+  "navigationColorDark": "#171717",
+  "navigationDividerColor": "#171717",
+  "navigationDividerColorDark": "#171717",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": false,
+  "startUrl": "/dashboard",
+  "iconUrl": "https://bfr6vef56ewkk6hcncswrzjz.207.244.232.199.sslip.io/icons/icon-512.png",
+  "maskableIconUrl": "https://bfr6vef56ewkk6hcncswrzjz.207.244.232.199.sslip.io/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./speakup-release.keystore",
+    "alias": "speakup"
+  },
+  "appVersionName": "0.1.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Talk with AI",
+      "shortName": "Talk with AI",
+      "url": "/practice/ai",
+      "chosenIconUrl": "https://bfr6vef56ewkk6hcncswrzjz.207.244.232.199.sslip.io/icons/icon-192.png"
+    },
+    {
+      "name": "Find a Partner",
+      "shortName": "Find a Partner",
+      "url": "/practice/human",
+      "chosenIconUrl": "https://bfr6vef56ewkk6hcncswrzjz.207.244.232.199.sslip.io/icons/icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://bfr6vef56ewkk6hcncswrzjz.207.244.232.199.sslip.io/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://bfr6vef56ewkk6hcncswrzjz.207.244.232.199.sslip.io/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "appVersion": "0.1.0"
+}

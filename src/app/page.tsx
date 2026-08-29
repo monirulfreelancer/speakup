@@ -241,6 +241,9 @@ export default async function LandingPage() {
           <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 p-4 text-sm text-muted-foreground">
             <span>© {new Date().getFullYear()} SpeakUp</span>
             <nav className="flex gap-4">
+              <Link href="/download" className="underline underline-offset-4">
+                Android app
+              </Link>
               <Link href="/guidelines" className="underline underline-offset-4">
                 Community guidelines
               </Link>
