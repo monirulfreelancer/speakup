@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSocket } from "@/lib/realtime/socket";
 import type { MatchedTopic, PartnerProfile } from "@/lib/realtime/events";
@@ -9,21 +10,22 @@ import { Button } from "@/components/ui/button";
 import type { CefrLevel } from "@/generated/prisma/enums";
 
 /*
- * Find-a-partner flow: idle → waiting (timer + position) → matched (partner
- * card + topic) | timeout | error. No audio yet — the matched state carries a
- * placeholder note; the voice call is the next phase.
+ * Find-a-partner flow: idle → waiting (timer + position) → matched → call.
+ * On a match the partner card is shown briefly, then the user is routed to
+ * /practice/call/[roomId], which owns the WebRTC connection.
  */
 
 type Phase =
   | { name: "idle" }
   | { name: "connecting" }
   | { name: "waiting"; position: number; estimatedWait: number }
-  | { name: "matched"; partner: PartnerProfile; topic: MatchedTopic }
+  | { name: "matched"; partner: PartnerProfile; topic: MatchedTopic; roomId: string }
   | { name: "timeout" }
   | { name: "partner_left" }
   | { name: "error"; message: string };
 
 export function FindPartner({ level }: { level: CefrLevel }) {
+  const router = useRouter();
   const [phase, setPhase] = useState<Phase>({ name: "idle" });
   const [waitSeconds, setWaitSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -44,9 +46,12 @@ export function FindPartner({ level }: { level: CefrLevel }) {
           : p,
       );
     });
-    socket.on("queue:matched", ({ partner, topic }) => {
+    socket.on("queue:matched", ({ partner, topic, roomId }) => {
       stopTimer();
-      setPhase({ name: "matched", partner, topic });
+      setPhase({ name: "matched", partner, topic, roomId });
+      // Brief pause so the partner card registers before the call screen
+      // takes over and asks for the microphone.
+      setTimeout(() => router.push(`/practice/call/${roomId}`), 1500);
     });
     socket.on("queue:timeout", () => {
       stopTimer();
@@ -79,7 +84,7 @@ export function FindPartner({ level }: { level: CefrLevel }) {
       socket.off("connect_error");
       socket.disconnect();
     };
-  }, []);
+  }, [router]);
 
   function findPartner() {
     const socket = getSocket();
@@ -159,12 +164,7 @@ export function FindPartner({ level }: { level: CefrLevel }) {
               Suggested topic: {phase.topic.icon} <span className="font-medium">{phase.topic.title}</span>
             </p>
           )}
-          <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-            🎧 The voice call arrives in the next update — for now this confirms matching works.
-          </p>
-          <Button variant="outline" className="h-11" onClick={cancel}>
-            Back
-          </Button>
+          <p className="text-sm text-muted-foreground">Starting your call…</p>
         </div>
       )}
 

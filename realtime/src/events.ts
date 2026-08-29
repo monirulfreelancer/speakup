@@ -26,12 +26,34 @@ export type ErrorCode =
   | "bad-request"
   | "server-error";
 
+/**
+ * WebRTC signaling payloads. The server relays these verbatim to the other
+ * room member and never inspects, stores or logs their contents.
+ */
+export type SdpPayload = { roomId: string; sdp: RTCSessionDescriptionLike };
+export type IcePayload = { roomId: string; candidate: RTCIceCandidateLike };
+
+/** Structural mirrors of the browser types, so realtime/ needs no DOM lib. */
+export type RTCSessionDescriptionLike = { type: string; sdp?: string };
+export type RTCIceCandidateLike = {
+  candidate: string;
+  sdpMid?: string | null;
+  sdpMLineIndex?: number | null;
+  usernameFragment?: string | null;
+};
+
+export type CallEndReason = "hangup" | "failed" | "partner_left";
+
 /** client -> server */
 export interface ClientToServerEvents {
   "queue:join": (payload: { allowedLevels?: CefrLevel[] }) => void;
   "queue:leave": () => void;
   "room:ready": (payload: { roomId: string }) => void;
   "room:leave": (payload: { roomId: string }) => void;
+  "rtc:offer": (payload: SdpPayload) => void;
+  "rtc:answer": (payload: SdpPayload) => void;
+  "rtc:ice": (payload: IcePayload) => void;
+  "call:end": (payload: { roomId: string; reason: CallEndReason }) => void;
 }
 
 /** server -> client */
@@ -44,5 +66,9 @@ export interface ServerToClientEvents {
   }) => void;
   "queue:timeout": () => void;
   "room:partner_left": () => void;
+  "rtc:offer": (payload: SdpPayload) => void;
+  "rtc:answer": (payload: SdpPayload) => void;
+  "rtc:ice": (payload: IcePayload) => void;
+  "call:ended": (payload: { reason: CallEndReason }) => void;
   error: (payload: { code: ErrorCode; message: string }) => void;
 }

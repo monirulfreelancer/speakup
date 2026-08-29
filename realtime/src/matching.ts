@@ -216,4 +216,49 @@ export async function endMatchByRoom(roomId: string, reason: string): Promise<vo
   );
 }
 
+/*
+ * Room membership check for signaling. Every rtc:* / call:end relay is
+ * gated on this: a socket may only signal into a room whose Match names it
+ * as user A or B, and only while the call is live. Without it, any
+ * authenticated user could guess a roomId and inject SDP into someone
+ * else's call.
+ *
+ * Cached briefly because it runs on every ICE candidate, of which there are
+ * many per call.
+ */
+const membershipCache = new Map<string, { ok: boolean; at: number }>();
+const MEMBERSHIP_TTL_MS = 30_000;
+
+export async function isRoomMember(roomId: string, userId: string): Promise<boolean> {
+  const key = `${roomId}:${userId}`;
+  const cached = membershipCache.get(key);
+  const now = Date.now();
+  if (cached && now - cached.at < MEMBERSHIP_TTL_MS) return cached.ok;
+
+  const { rows } = await pool.query(
+    `SELECT 1 FROM matches
+     WHERE room_id = $1 AND ended_at IS NULL AND (user_a_id = $2 OR user_b_id = $2)
+     LIMIT 1`,
+    [roomId, userId],
+  );
+  const ok = rows.length > 0;
+  membershipCache.set(key, { ok, at: now });
+  return ok;
+}
+
+export function forgetRoomMembership(roomId: string): void {
+  for (const key of membershipCache.keys()) {
+    if (key.startsWith(`${roomId}:`)) membershipCache.delete(key);
+  }
+}
+
+/** Records which ICE path the call actually used (host / srflx / relay). */
+export async function recordCandidatePairType(roomId: string, type: string): Promise<void> {
+  if (!["host", "srflx", "relay", "prflx"].includes(type)) return;
+  await pool.query(
+    `UPDATE matches SET candidate_pair_type = $2 WHERE room_id = $1 AND candidate_pair_type IS NULL`,
+    [roomId, type],
+  );
+}
+
 export type { PartnerProfile };

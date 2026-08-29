@@ -4,7 +4,16 @@ import { Server, type Socket } from "socket.io";
 import { verifySocketToken, type SocketUser } from "./auth";
 import { dbHealthy } from "./db";
 import type { CefrLevel, ClientToServerEvents, ServerToClientEvents } from "./events";
-import { adjacentLevels, dequeue, endMatchByRoom, enqueue, queuePosition, runMatcher } from "./matching";
+import {
+  adjacentLevels,
+  dequeue,
+  endMatchByRoom,
+  enqueue,
+  forgetRoomMembership,
+  isRoomMember,
+  queuePosition,
+  runMatcher,
+} from "./matching";
 
 /*
  * SpeakUp realtime service.
@@ -126,8 +135,65 @@ io.on("connection", (rawSocket) => {
     await dequeue(user.id).catch(() => {});
   });
 
-  socket.on("room:ready", () => {
-    // Presence ack — becomes meaningful when the call arrives (Phase 13).
+  socket.on("room:ready", async ({ roomId }) => {
+    // Presence ack: the peer reached the call screen. Join it to the room so
+    // signaling can reach it even if this socket reconnected since matching.
+    if (!(await guardRoom(roomId, "room:ready"))) return;
+    void socket.join(roomId);
+    socket.data.roomId = roomId;
+  });
+
+  /*
+   * WebRTC signaling relay.
+   *
+   * The server is a dumb pipe: it verifies the sender really belongs to the
+   * room (see isRoomMember — otherwise any logged-in user could guess a
+   * roomId and inject SDP into a stranger's call), then forwards the payload
+   * untouched to the OTHER member. SDP and ICE contents are never inspected,
+   * stored, or logged; log lines carry the event name, roomId and userId only.
+   */
+  async function guardRoom(roomId: string, event: string): Promise<boolean> {
+    if (typeof roomId !== "string" || roomId.length === 0) return false;
+    try {
+      const member = await isRoomMember(roomId, user.id);
+      if (!member) {
+        console.warn(`[signal] rejected ${event} room=${roomId} user=${user.id} (not a member)`);
+        socket.emit("error", { code: "bad-request", message: "That call is not available." });
+      }
+      return member;
+    } catch (error) {
+      console.error(`[signal] membership check failed for ${event} room=${roomId}:`, error instanceof Error ? error.message : error);
+      return false;
+    }
+  }
+
+  socket.on("rtc:offer", async (payload) => {
+    if (!(await guardRoom(payload?.roomId, "rtc:offer"))) return;
+    console.log(`[signal] rtc:offer room=${payload.roomId} user=${user.id}`);
+    socket.to(payload.roomId).emit("rtc:offer", payload);
+  });
+
+  socket.on("rtc:answer", async (payload) => {
+    if (!(await guardRoom(payload?.roomId, "rtc:answer"))) return;
+    console.log(`[signal] rtc:answer room=${payload.roomId} user=${user.id}`);
+    socket.to(payload.roomId).emit("rtc:answer", payload);
+  });
+
+  socket.on("rtc:ice", async (payload) => {
+    if (!(await guardRoom(payload?.roomId, "rtc:ice"))) return;
+    // Deliberately not logged per-candidate: high volume, and the contents
+    // are network identifiers.
+    socket.to(payload.roomId).emit("rtc:ice", payload);
+  });
+
+  socket.on("call:end", async ({ roomId, reason }) => {
+    if (!(await guardRoom(roomId, "call:end"))) return;
+    console.log(`[signal] call:end room=${roomId} user=${user.id} reason=${reason}`);
+    socket.to(roomId).emit("call:ended", { reason: reason === "failed" ? "failed" : "partner_left" });
+    void socket.leave(roomId);
+    socket.data.roomId = undefined;
+    await endMatchByRoom(roomId, reason).catch(() => {});
+    forgetRoomMembership(roomId);
   });
 
   socket.on("room:leave", async ({ roomId }) => {
@@ -146,8 +212,11 @@ io.on("connection", (rawSocket) => {
     if (!socketsByUser.has(user.id)) {
       await dequeue(user.id).catch(() => {});
       if (socket.data.roomId) {
-        socket.to(socket.data.roomId).emit("room:partner_left");
-        await endMatchByRoom(socket.data.roomId, "disconnected").catch(() => {});
+        const roomId = socket.data.roomId;
+        socket.to(roomId).emit("room:partner_left");
+        socket.to(roomId).emit("call:ended", { reason: "partner_left" });
+        await endMatchByRoom(roomId, "disconnected").catch(() => {});
+        forgetRoomMembership(roomId);
       }
     }
   });

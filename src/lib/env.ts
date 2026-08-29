@@ -23,6 +23,13 @@ const envSchema = z.object({
   AI_PROVIDER: z.enum(["anthropic", "openai"]).default("anthropic"),
   AI_MODEL: z.string().optional(),
   DAILY_MINUTES_QUOTA: z.coerce.number().int().positive().default(60),
+
+  // TURN (coturn) for WebRTC. All optional: without TURN_SECRET the app
+  // falls back to STUN only, which works on most home networks and fails on
+  // symmetric NAT — degraded, not broken, so it must never block boot.
+  TURN_SECRET: z.string().optional(),
+  TURN_URLS: z.string().optional(),
+  TURN_REALM: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

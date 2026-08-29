@@ -62,3 +62,4 @@ android/store_icon.png
 android/manifest-checksum.txt
 android/app-release-*
 android/local.properties
+realtime/dist/

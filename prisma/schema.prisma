@@ -321,6 +321,9 @@ model Match {
   endedAt         DateTime? @map("ended_at")
   endReason       String?   @map("end_reason")
   durationSeconds Int       @default(0) @map("duration_seconds")
+  // Which ICE path the call used: host / srflx / relay. Measuring how often
+  // TURN actually relays decides whether coturn stays on this VPS.
+  candidatePairType String? @map("candidate_pair_type")
 
   @@index([userAId])
   @@index([userBId])
@@ -335,4 +338,43 @@ model Block {
 
   @@unique([blockerId, blockedId])
   @@map("blocks")
+}
+
+// ---------------------------------------------------------------------------
+// Calls and safety (Phase 13)
+// ---------------------------------------------------------------------------
+
+enum ReportReason {
+  INAPPROPRIATE_LANGUAGE
+  HARASSMENT
+  NO_ENGLISH
+  SEXUAL_CONTENT
+  SPAM
+  OTHER
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  reporterId String       @map("reporter_id")
+  reportedId String       @map("reported_id")
+  matchId    String?      @map("match_id")
+  reason     ReportReason
+  note       String?      @db.Text
+  status     String       @default("open")
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  @@index([reportedId, createdAt(sort: Desc)])
+  @@map("reports")
+}
+
+model PartnerRating {
+  id        String   @id @default(cuid())
+  matchId   String   @map("match_id")
+  raterId   String   @map("rater_id")
+  rateeId   String   @map("ratee_id")
+  rating    Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([matchId, raterId])
+  @@map("partner_ratings")
 }
