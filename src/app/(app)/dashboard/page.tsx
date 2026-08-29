@@ -95,6 +95,9 @@ export default async function DashboardPage({
   const streak = streakFromDays(completed.map((s) => s.startedAt));
   const minutes = Math.round((user.stats?.totalSeconds ?? 0) / 60);
   const conversations = user.stats?.sessionsCount ?? 0;
+  // "Has ever finished something" — either a counted session or a completed
+  // row, so a stats row that lags behind cannot hide real history.
+  const hasPractised = conversations > 0 || completed.length > 0;
 
   return (
     <main className="mx-auto w-full max-w-2xl space-y-5 p-4 md:p-8">
@@ -118,11 +121,23 @@ export default async function DashboardPage({
         <Badge level={user.cefrLevel} />
       </header>
 
-      <section aria-label="Your progress" className="grid grid-cols-3 gap-2">
-        <StatTile icon={Flame} value={streak} label="day streak" tone="warning" compact />
-        <StatTile icon={Clock} value={minutes} label="minutes" tone="primary" compact />
-        <StatTile icon={MessageCircle} value={conversations} label="calls" compact />
-      </section>
+      {/*
+       * Three tiles reading 0 is the worst thing a new account can open on:
+       * it reads as a scoreboard you are losing. Until there is something
+       * real to count, say something human instead. No dashes, no zeroes
+       * dressed up as progress.
+       */}
+      {hasPractised ? (
+        <section aria-label="Your progress" className="grid grid-cols-3 gap-2">
+          <StatTile icon={Flame} value={streak} label="day streak" tone="warning" compact />
+          <StatTile icon={Clock} value={minutes} label="minutes" tone="primary" compact />
+          <StatTile icon={MessageCircle} value={conversations} label="calls" compact />
+        </section>
+      ) : (
+        <p className="rounded-2xl border-2 border-dashed border-line p-4 text-center text-sm font-semibold text-muted">
+          Your first conversation is the hard one. Pick someone below and say hello.
+        </p>
+      )}
 
       {env.AI_MODE_ENABLED && (
         <Link

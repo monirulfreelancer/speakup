@@ -76,7 +76,27 @@ export function AppShell({
           </aside>
         )}
 
-        <div className={`flex-1 ${immersive ? "" : "pb-24 md:pb-0"}`}>{children}</div>
+        <div className={`flex-1 ${immersive ? "" : "pb-24 md:pb-0"}`}>
+          {/*
+           * Phones hide the sidebar, which left the app with no logo or name
+           * anywhere. This is a label, not a header: slim, no actions, and
+           * opaque so content scrolls under it cleanly rather than showing
+           * through. It sits below the incoming-call overlay (z-[100]), so
+           * that stays full-bleed.
+           */}
+          {!immersive && (
+            <div className="sticky top-0 z-30 border-b-2 border-line bg-surface pt-[env(safe-area-inset-top)] md:hidden">
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 px-4 py-2 text-base font-extrabold"
+              >
+                <Logo size={28} title={null} />
+                SpeakUp
+              </Link>
+            </div>
+          )}
+          {children}
+        </div>
 
         {!immersive && (
           <nav

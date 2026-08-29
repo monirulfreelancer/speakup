@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Phone, Search, SearchX, UserRound } from "lucide-react";
@@ -66,9 +66,45 @@ export function PeopleDirectory({
   const [callError, setCallError] = useState<string | null>(null);
   const [callingId, setCallingId] = useState<string | null>(null);
 
+  const levelStripRef = useRef<HTMLDivElement | null>(null);
+  const selectedLevelRef = useRef<HTMLButtonElement | null>(null);
+  const [levelEdges, setLevelEdges] = useState({ start: true, end: true });
+
   // NOTE: a filter change remounts this component (the parent keys it on
   // the active filters), so paging state resets without syncing props to
   // state in an effect.
+
+  const updateLevelEdges = useCallback(() => {
+    const strip = levelStripRef.current;
+    if (!strip) return;
+    // 1px of slack: sub-pixel layout means scrollLeft rarely lands exactly
+    // on the maximum, which would leave the right fade on forever.
+    const end = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1;
+    setLevelEdges((prev) => {
+      const next = { start: strip.scrollLeft <= 1, end };
+      return prev.start === next.start && prev.end === next.end ? prev : next;
+    });
+  }, []);
+
+  /*
+   * Bring the active chip into view on load. Someone filtered to C2 would
+   * otherwise open Home with their own filter scrolled off the right edge,
+   * see an unexplained short list, and have no idea why.
+   *
+   * scrollLeft rather than scrollIntoView: the latter also scrolls the
+   * nearest scrollable ancestor, which here is the page.
+   */
+  useEffect(() => {
+    const strip = levelStripRef.current;
+    const chip = selectedLevelRef.current;
+    if (strip && chip) {
+      strip.scrollLeft = Math.max(
+        0,
+        chip.offsetLeft - (strip.clientWidth - chip.clientWidth) / 2,
+      );
+    }
+    updateLevelEdges();
+  }, [updateLevelEdges]);
 
   // Debounced search: navigate so the server re-queries.
   useEffect(() => {
@@ -153,34 +189,61 @@ export function PeopleDirectory({
           />
         </div>
 
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
-          <button
-            type="button"
-            onClick={() => setLevel("")}
-            aria-pressed={!level}
-            className={`min-h-11 shrink-0 rounded-full border-2 px-4 text-sm font-bold ${
-              !level
-                ? "border-primary bg-primary text-on-primary"
-                : "border-line bg-surface text-muted"
-            }`}
+        {/*
+         * The strip bleeds to the screen edges on phones, where all seven
+         * chips do not fit. The fades are the only cue that it scrolls, so
+         * they are driven by real scroll position rather than always shown:
+         * a fade on an edge you have already reached is a lie.
+         */}
+        <div className="relative -mx-4 md:mx-0">
+          <div
+            ref={levelStripRef}
+            onScroll={updateLevelEdges}
+            className="no-scrollbar flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 md:flex-wrap md:scroll-px-0 md:px-0"
           >
-            All
-          </button>
-          {LEVELS.map((l) => (
             <button
-              key={l}
               type="button"
-              onClick={() => setLevel(l)}
-              aria-pressed={level === l}
-              className={`min-h-11 w-12 shrink-0 rounded-full border-2 text-sm font-extrabold ${
-                level === l
+              ref={!level ? selectedLevelRef : undefined}
+              onClick={() => setLevel("")}
+              aria-pressed={!level}
+              className={`min-h-11 shrink-0 snap-start rounded-full border-2 px-4 text-sm font-bold ${
+                !level
                   ? "border-primary bg-primary text-on-primary"
                   : "border-line bg-surface text-muted"
               }`}
             >
-              {l}
+              All
             </button>
-          ))}
+            {LEVELS.map((l) => (
+              <button
+                key={l}
+                type="button"
+                ref={level === l ? selectedLevelRef : undefined}
+                onClick={() => setLevel(l)}
+                aria-pressed={level === l}
+                className={`min-h-11 w-12 shrink-0 snap-start rounded-full border-2 text-sm font-extrabold ${
+                  level === l
+                    ? "border-primary bg-primary text-on-primary"
+                    : "border-line bg-surface text-muted"
+                }`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute inset-y-0 left-0 w-8 bg-linear-to-r from-background to-background/0 transition-opacity md:hidden ${
+              levelEdges.start ? "opacity-0" : "opacity-100"
+            }`}
+          />
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute inset-y-0 right-0 w-8 bg-linear-to-l from-background to-background/0 transition-opacity md:hidden ${
+              levelEdges.end ? "opacity-0" : "opacity-100"
+            }`}
+          />
         </div>
       </div>
       )}
