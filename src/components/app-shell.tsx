@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { Home, Users, Settings as SettingsIcon, Mic } from "lucide-react";
+import { Home, Settings as SettingsIcon, Mic } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { IncomingCallProvider } from "@/components/call/incoming-call-provider";
 import { ToastProvider } from "@/components/ui/toast";
@@ -20,10 +20,9 @@ type NavItem = { href: string; label: string; icon: LucideIcon };
 
 const HOME: NavItem = { href: "/dashboard", label: "Home", icon: Home };
 const AI_PRACTICE: NavItem = { href: "/practice/ai", label: "Practice", icon: Mic };
-const REST: NavItem[] = [
-  { href: "/people", label: "People", icon: Users },
-  { href: "/settings", label: "Settings", icon: SettingsIcon },
-];
+// People lives on Home now, so a separate tab would point at the page the
+// user is already on.
+const REST: NavItem[] = [{ href: "/settings", label: "Settings", icon: SettingsIcon }];
 
 export function AppShell({
   children,
@@ -85,7 +84,7 @@ export function AppShell({
             aria-label="Main"
             className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
           >
-            <div className={`grid ${nav.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
+            <div className={`grid ${nav.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
               {nav.map((item) => {
                 const active = isActive(item.href);
                 return (

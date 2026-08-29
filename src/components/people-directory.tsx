@@ -17,8 +17,12 @@ import { startCall } from "@/server/actions/call";
 import type { CefrLevel } from "@/generated/prisma/enums";
 
 /*
- * The people directory. The first page is server-rendered; "Load more" and
- * the live online dots are the only client-side work.
+ * The people directory, rendered inline on Home. The first page is
+ * server-rendered; "Load more" and the live online dots are the only
+ * client-side work.
+ *
+ * This is the ONLY implementation — Home embeds it rather than linking to a
+ * separate page, so there is nothing to keep in sync.
  *
  * Search and level filtering navigate, so the SERVER re-queries. Filtering
  * the already-loaded page in the browser would silently search only the
@@ -73,7 +77,7 @@ export function PeopleDirectory({
       const next = new URLSearchParams(params.toString());
       if (query.trim()) next.set("q", query.trim());
       else next.delete("q");
-      router.replace(`/people?${next.toString()}`);
+      router.replace(`/dashboard?${next.toString()}`);
     }, 350);
     return () => clearTimeout(id);
   }, [query, search, params, router]);
@@ -82,7 +86,7 @@ export function PeopleDirectory({
     const next = new URLSearchParams(params.toString());
     if (nextLevel) next.set("level", nextLevel);
     else next.delete("level");
-    router.replace(`/people?${next.toString()}`);
+    router.replace(`/dashboard?${next.toString()}`);
   }
 
   function loadMore() {
@@ -126,16 +130,14 @@ export function PeopleDirectory({
 
   const filtersActive = Boolean(search || level);
 
-  return (
-    <main className="mx-auto w-full max-w-2xl space-y-4 p-4 md:p-8">
-      <header>
-        <h1 className="text-2xl">People</h1>
-        <p className="text-sm font-semibold text-muted">
-          {total} {total === 1 ? "learner" : "learners"} to practise with
-        </p>
-      </header>
+  // With no one to show and no filters applied, the controls would be
+  // filtering an empty list — hide them rather than offer a dead search box.
+  const showControls = total > 0 || filtersActive;
 
-      {/* Compact filter row: search plus a scrollable level strip. */}
+  return (
+    <section className="space-y-4">
+      {showControls && (
+      /* Compact filter row: search plus a scrollable level strip. */
       <div className="space-y-2">
         <div className="relative">
           <Search
@@ -181,6 +183,7 @@ export function PeopleDirectory({
           ))}
         </div>
       </div>
+      )}
 
       {callError && (
         <p className="rounded-2xl border-2 border-danger bg-surface p-3 text-center text-sm font-semibold text-danger">
@@ -199,7 +202,7 @@ export function PeopleDirectory({
           }
           action={
             filtersActive ? (
-              <Button variant="secondary" onClick={() => router.replace("/people")}>
+              <Button variant="secondary" onClick={() => router.replace("/dashboard")}>
                 Clear filters
               </Button>
             ) : undefined
@@ -282,6 +285,6 @@ export function PeopleDirectory({
           Load more
         </Button>
       )}
-    </main>
+    </section>
   );
 }

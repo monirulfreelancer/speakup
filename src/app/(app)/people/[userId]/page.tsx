@@ -31,8 +31,8 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
           This person is not in your directory. They may have left, or one of you blocked the
           other.
         </p>
-        <Link href="/people" className="text-sm font-bold text-primary underline underline-offset-4">
-          Back to people
+        <Link href="/" className="text-sm font-bold text-primary underline underline-offset-4">
+          Back to Home
         </Link>
       </main>
     );
@@ -47,11 +47,11 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
   return (
     <main className="mx-auto w-full max-w-md space-y-6 p-4 md:p-8">
       <Link
-        href="/people"
+        href="/"
         className="inline-flex min-h-11 items-center gap-1 text-sm font-bold text-muted hover:text-text"
       >
         <ArrowLeft className="size-4" aria-hidden />
-        People
+        Home
       </Link>
 
       <section className="space-y-3 text-center">

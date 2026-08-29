@@ -139,7 +139,7 @@ export async function updateProfile(input: {
   });
 
   revalidatePath("/settings");
-  revalidatePath("/people");
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard");
   return { ok: true };
 }

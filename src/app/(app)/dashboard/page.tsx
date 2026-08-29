@@ -1,12 +1,14 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Flame, Clock, MessageCircle, Users, Mic, ArrowRight } from "lucide-react";
+import { Flame, Clock, MessageCircle, Mic, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { getDirectory } from "@/server/people";
 import { Avatar } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
 import { StatTile } from "@/components/ui/stat-tile";
+import { PeopleDirectory } from "@/components/people-directory";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 
 export const metadata = { title: "Home — SpeakUp" };
@@ -41,7 +43,18 @@ function streakFromDays(days: Date[]): number {
   return streak;
 }
 
-export default async function DashboardPage() {
+/*
+ * Home IS the directory. There is nothing to tap through to: the people you
+ * can call are the page, with the greeting and stats as a slim strip above
+ * them.
+ */
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; level?: string }>;
+}) {
+  const { q, level } = await searchParams;
+
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
@@ -59,21 +72,27 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
   if (!user.onboardedAt || !user.cefrLevel) redirect("/onboarding");
 
-  const completed = await db.practiceSession.findMany({
-    where: { userId: session.user.id, status: "COMPLETED" },
-    select: { startedAt: true },
-    orderBy: { startedAt: "desc" },
-    take: 400,
-  });
+  const [completed, directory] = await Promise.all([
+    db.practiceSession.findMany({
+      where: { userId: session.user.id, status: "COMPLETED" },
+      select: { startedAt: true },
+      orderBy: { startedAt: "desc" },
+      take: 400,
+    }),
+    user.isAdult
+      ? getDirectory({ search: q, level, page: 0 })
+      : Promise.resolve({ people: [], hasMore: false, total: 0 }),
+  ]);
 
   const streak = streakFromDays(completed.map((s) => s.startedAt));
   const minutes = Math.round((user.stats?.totalSeconds ?? 0) / 60);
   const conversations = user.stats?.sessionsCount ?? 0;
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-6 p-4 md:p-8">
+    <main className="mx-auto w-full max-w-2xl space-y-5 p-4 md:p-8">
       <InstallPrompt eligible={conversations >= 1} />
 
+      {/* Compact: one row, no wasted vertical space above the list. */}
       <header className="flex items-center gap-3">
         <Avatar
           user={{
@@ -81,65 +100,54 @@ export default async function DashboardPage() {
             displayName: user.name,
             avatarUpdatedAt: user.avatarUpdatedAt,
           }}
-          size={56}
+          size={44}
           priority
         />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-muted">{greeting()},</p>
-          <h1 className="truncate text-2xl">{user.name}</h1>
+          <p className="text-xs font-semibold text-muted">{greeting()},</p>
+          <h1 className="truncate text-lg">{user.name}</h1>
         </div>
         <Badge level={user.cefrLevel} />
       </header>
 
-      <section aria-label="Your progress" className="grid grid-cols-3 gap-3">
-        <StatTile icon={Flame} value={streak} label="day streak" tone="warning" />
-        <StatTile icon={Clock} value={minutes} label="minutes" tone="primary" />
-        <StatTile icon={MessageCircle} value={conversations} label="conversations" />
+      <section aria-label="Your progress" className="grid grid-cols-3 gap-2">
+        <StatTile icon={Flame} value={streak} label="day streak" tone="warning" compact />
+        <StatTile icon={Clock} value={minutes} label="minutes" tone="primary" compact />
+        <StatTile icon={MessageCircle} value={conversations} label="calls" compact />
       </section>
 
-      {/* The one obvious thing to do next. */}
-      <section className="space-y-3">
-        {user.isAdult ? (
-          <Link
-            href="/people"
-            className="btn-3d flex min-h-32 items-center gap-4 rounded-3xl bg-primary p-5 text-on-primary [--btn-edge:var(--primary-dark)] active:btn-3d-press"
-          >
-            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-on-primary/20">
-              <Users className="size-7" aria-hidden />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-xl font-extrabold">Find someone to talk to</span>
-              <span className="block text-sm opacity-90">
-                Browse learners at your level and start a call
-              </span>
-            </span>
-            <ArrowRight className="size-6 shrink-0" aria-hidden />
-          </Link>
-        ) : (
-          <div className="flex min-h-32 items-center gap-4 rounded-3xl border-2 border-dashed border-line p-5">
-            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-surface-raised">
-              <Users className="size-7 text-muted" aria-hidden />
-            </span>
-            <span>
-              <span className="block text-lg font-extrabold">Partner practice is 18+</span>
-              <span className="block text-sm text-muted">
-                Talking with strangers is limited to adults for now.
-              </span>
-            </span>
-          </div>
-        )}
+      {env.AI_MODE_ENABLED && (
+        <Link
+          href="/practice/ai"
+          className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-line bg-surface p-4 font-bold transition-colors hover:bg-surface-raised"
+        >
+          <Mic className="size-5 text-primary" aria-hidden />
+          Practice with the AI partner
+          <ArrowRight className="ml-auto size-5 text-muted" aria-hidden />
+        </Link>
+      )}
 
-        {env.AI_MODE_ENABLED && (
-          <Link
-            href="/practice/ai"
-            className="flex min-h-16 items-center gap-3 rounded-2xl border-2 border-line bg-surface p-4 font-bold transition-colors hover:bg-surface-raised"
-          >
-            <Mic className="size-5 text-primary" aria-hidden />
-            Practice with the AI partner
-            <ArrowRight className="ml-auto size-5 text-muted" aria-hidden />
-          </Link>
-        )}
-      </section>
+      {user.isAdult ? (
+        <>
+          <h2 className="pt-1 text-lg">Talk with someone</h2>
+          <PeopleDirectory
+            // Remount on any filter change so the loaded pages reset cleanly.
+            key={`${q ?? ""}|${level ?? ""}`}
+            initialPeople={directory.people}
+            initialHasMore={directory.hasMore}
+            total={directory.total}
+            search={q ?? ""}
+            level={level ?? ""}
+          />
+        </>
+      ) : (
+        <div className="rounded-2xl border-2 border-dashed border-line p-6 text-center">
+          <p className="font-bold">Partner practice is 18+</p>
+          <p className="pt-1 text-sm text-muted">
+            Talking with strangers is limited to adults for now.
+          </p>
+        </div>
+      )}
     </main>
   );
 }

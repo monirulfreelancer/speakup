@@ -145,7 +145,7 @@ export function PostCall({
 
       <div className="space-y-2">
         <Link
-          href="/people"
+          href="/dashboard"
           className="btn-3d flex min-h-14 items-center justify-center rounded-2xl bg-primary px-6 text-lg font-bold text-on-primary [--btn-edge:var(--primary-dark)] active:btn-3d-press"
         >
           Find someone else

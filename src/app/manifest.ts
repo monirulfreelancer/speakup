@@ -53,7 +53,7 @@ export default function manifest(): MetadataRoute.Manifest {
         : []),
       {
         name: "Find a Partner",
-        url: "/people",
+        url: "/",
         icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
       },
     ],

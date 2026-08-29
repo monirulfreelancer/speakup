@@ -49,7 +49,7 @@ export function PersonActions({ userId, name }: { userId: string; name: string }
         ok: false as const,
         error: "Could not block. Try again.",
       }));
-      if (result.ok) router.push("/people");
+      if (result.ok) router.push("/dashboard");
       else setError(result.error);
     });
   }
