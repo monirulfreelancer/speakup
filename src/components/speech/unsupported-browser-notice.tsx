@@ -15,10 +15,10 @@ export function UnsupportedBrowserNotice({ capabilities }: { capabilities: Speec
         😕
       </span>
       <h2 className="font-semibold">Voice practice isn’t available here</h2>
-      <p className="text-sm text-muted-foreground">{capabilities.reason}</p>
-      <div className="rounded-lg bg-accent p-3 text-left text-sm">
+      <p className="text-sm text-muted">{capabilities.reason}</p>
+      <div className="rounded-lg bg-surface-raised p-3 text-left text-sm">
         <p className="mb-1 font-medium">Browsers that work:</p>
-        <ul className="list-inside list-disc text-muted-foreground">
+        <ul className="list-inside list-disc text-muted">
           <li>Chrome on desktop or Android</li>
           <li>Microsoft Edge</li>
           <li>Safari on iPhone/iPad (iOS 16.4+ for the installed app)</li>

@@ -1,23 +1,36 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 
 /*
- * Vertical audio level meter driven by an AnalyserNode. Used twice on the
- * call screen (local mic and remote stream) so both people can see that
- * audio is actually flowing — the fastest way to tell "connected but silent"
- * apart from "not connected".
+ * A soft ring that breathes with the speaker's voice, wrapped around the
+ * avatar it belongs to. Far kinder to look at than a bar graph, and it
+ * makes "connected but silent" instantly obvious.
  *
  * The whole audio graph is created and torn down per stream, so nothing
- * leaks when the call ends or the stream is swapped.
+ * leaks when the call ends or the stream is swapped. Scale is driven
+ * directly rather than through React state: sixty state updates a second
+ * would re-render the call screen continuously.
  */
 
-export function AudioMeter({ stream }: { stream: MediaStream | null }) {
-  const barRef = useRef<HTMLDivElement>(null);
+export function AudioRing({
+  stream,
+  children,
+  className = "",
+}: {
+  stream: MediaStream | null;
+  children: ReactNode;
+  className?: string;
+}) {
+  const ringRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     if (!stream || stream.getAudioTracks().length === 0) {
-      if (barRef.current) barRef.current.style.height = "0%";
+      if (ringRef.current) {
+        ringRef.current.style.transform = "scale(1)";
+        ringRef.current.style.opacity = "0";
+      }
       return;
     }
 
@@ -33,8 +46,11 @@ export function AudioMeter({ stream }: { stream: MediaStream | null }) {
       analyser.getByteFrequencyData(data);
       let sum = 0;
       for (let i = 0; i < data.length; i++) sum += data[i];
-      const level = Math.min(1, sum / data.length / 128);
-      if (barRef.current) barRef.current.style.height = `${Math.round(level * 100)}%`;
+      const level = Math.min(1, sum / data.length / 110);
+      if (ringRef.current) {
+        ringRef.current.style.transform = `scale(${1 + level * 0.35})`;
+        ringRef.current.style.opacity = `${0.15 + level * 0.7}`;
+      }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -47,11 +63,13 @@ export function AudioMeter({ stream }: { stream: MediaStream | null }) {
   }, [stream]);
 
   return (
-    <div
-      className="flex h-20 w-8 items-end overflow-hidden rounded-full bg-accent"
-      role="presentation"
-    >
-      <div ref={barRef} className="w-full rounded-full bg-primary transition-[height] duration-75" />
-    </div>
+    <span className={`relative inline-flex items-center justify-center ${className}`}>
+      <span
+        ref={ringRef}
+        aria-hidden
+        className="absolute inset-0 rounded-full bg-primary opacity-0 transition-[transform,opacity] duration-75"
+      />
+      <span className="relative">{children}</span>
+    </span>
   );
 }

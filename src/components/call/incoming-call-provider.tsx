@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSocket } from "@/lib/realtime/socket";
 import { Ringtone } from "@/lib/rtc/ringtone";
-import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/avatar";
+import { Phone, PhoneOff } from "lucide-react";
 
 /*
  * Global incoming-call overlay.
@@ -121,38 +121,60 @@ export function IncomingCallProvider() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-4 sm:items-center">
-      <div className="w-full max-w-sm space-y-5 rounded-2xl border bg-background p-6 text-center shadow-xl">
-        <Avatar
-          user={{
-            id: ringing.fromUserId,
-            displayName: ringing.fromName,
-            avatarUpdatedAt: ringing.avatarUpdatedAt,
-          }}
-          size={80}
-          className="mx-auto animate-pulse"
-          priority
-        />
+    // Full screen on mobile so the call is unmissable; a centred card from
+    // sm up. Accept and Decline are pushed to opposite edges with a wide gap
+    // — a mis-tap here hangs up on a real person.
+    <div className="fixed inset-0 z-[100] flex flex-col justify-between bg-background p-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:items-center sm:justify-center sm:bg-scrim">
+      <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center sm:w-full sm:max-w-sm sm:flex-none sm:rounded-3xl sm:border-2 sm:border-line sm:bg-surface sm:p-8">
+        <span className="relative flex items-center justify-center">
+          <span className="absolute inset-0 rounded-full bg-primary animate-ring-pulse" aria-hidden />
+          <Avatar
+            user={{
+              id: ringing.fromUserId,
+              displayName: ringing.fromName,
+              avatarUpdatedAt: ringing.avatarUpdatedAt,
+            }}
+            size={128}
+            className="relative"
+            priority
+          />
+        </span>
+
         <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Incoming call</p>
-          <p className="text-xl font-bold">{ringing.fromName}</p>
-          <p className="font-mono text-sm text-muted-foreground">{ringing.fromLevel}</p>
+          <p className="text-sm font-bold uppercase tracking-wide text-muted">Incoming call</p>
+          <p className="text-3xl font-extrabold">{ringing.fromName}</p>
+          <p className="text-sm font-extrabold text-muted">Level {ringing.fromLevel}</p>
         </div>
+
         {ringing.topic && (
-          <p className="rounded-xl bg-accent p-3 text-sm">
-            {ringing.topic.icon} <span className="font-medium">{ringing.topic.title}</span>
+          <p className="rounded-2xl bg-surface-raised px-4 py-3 text-sm font-semibold">
+            {ringing.topic.icon} <span className="font-extrabold">{ringing.topic.title}</span>
           </p>
         )}
-        <div className="grid grid-cols-2 gap-3">
-          <Button variant="destructive" className="h-14 rounded-full" onClick={decline}>
-            Decline
-          </Button>
-          <Button
-            className="h-14 rounded-full bg-green-600 text-white hover:bg-green-700"
-            onClick={accept}
+      </div>
+
+      <div className="flex items-end justify-between gap-10 sm:absolute sm:bottom-16 sm:justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={decline}
+            aria-label="Decline call"
+            className="btn-3d flex size-18 items-center justify-center rounded-full bg-danger text-white [--btn-edge:var(--danger-dark)] active:btn-3d-press"
           >
-            Accept
-          </Button>
+            <PhoneOff className="size-7" aria-hidden />
+          </button>
+          <span className="text-sm font-bold text-muted">Decline</span>
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={accept}
+            aria-label="Accept call"
+            className="btn-3d flex size-18 items-center justify-center rounded-full bg-primary text-on-primary [--btn-edge:var(--primary-dark)] active:btn-3d-press"
+          >
+            <Phone className="size-7" aria-hidden />
+          </button>
+          <span className="text-sm font-bold text-muted">Accept</span>
         </div>
       </div>
     </div>

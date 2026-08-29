@@ -74,7 +74,7 @@ export function MicButton({
           <div
             ref={ringRef}
             aria-hidden
-            className="absolute inset-0 rounded-full bg-red-500/30 transition-transform duration-75"
+            className="absolute inset-0 rounded-full bg-danger/30 transition-transform duration-75"
           />
         )}
         {/* Processing spinner ring */}
@@ -91,16 +91,16 @@ export function MicButton({
           aria-label={STATE_LABEL[state]}
           className={`relative z-10 flex size-24 items-center justify-center rounded-full text-4xl shadow-lg transition-colors disabled:opacity-50 ${
             state === "listening"
-              ? "bg-red-500 text-white"
+              ? "bg-danger text-white"
               : state === "speaking"
-                ? "bg-blue-500 text-white"
-                : "bg-primary text-primary-foreground"
+                ? "bg-level-b text-white"
+                : "bg-primary text-on-primary"
           }`}
         >
           {state === "listening" ? "⏹" : state === "speaking" ? "🔊" : "🎙️"}
         </button>
       </div>
-      <p className="text-sm font-medium text-muted-foreground" aria-live="polite">
+      <p className="text-sm font-medium text-muted" aria-live="polite">
         {STATE_LABEL[state]}
       </p>
     </div>

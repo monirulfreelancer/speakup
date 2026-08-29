@@ -9,6 +9,7 @@ import {
   type SettingsResult,
 } from "@/server/actions/settings";
 import { Button } from "@/components/ui/button";
+import { Play } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { subscribeVoices } from "@/lib/speech/voices";
@@ -55,15 +56,15 @@ export function EnforcementModePicker({ current }: { current: string }) {
             type="button"
             onClick={() => pick(m.value)}
             className={`min-h-11 rounded-lg border p-3 text-left transition-colors ${
-              mode === m.value ? "border-primary bg-accent" : "hover:bg-accent/50"
+              mode === m.value ? "border-primary bg-surface-raised" : "hover:bg-surface-raised"
             }`}
           >
             <span className="font-medium">{m.label}.</span>{" "}
-            <span className="text-sm text-muted-foreground">{m.blurb}</span>
+            <span className="text-sm text-muted">{m.blurb}</span>
           </button>
         ))}
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }
@@ -100,7 +101,7 @@ export function UiLanguageSelect({ current }: { current: string }) {
       >
         <option value="en">English</option>
       </select>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }
@@ -131,7 +132,7 @@ export function NotificationsToggle({ initial }: { initial: boolean }) {
         <Label htmlFor="notifications">Practice reminders</Label>
         <Switch id="notifications" checked={enabled} onCheckedChange={toggle} />
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }
@@ -213,7 +214,7 @@ export function TtsControls({
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <Label htmlFor="tts-rate">Speech speed</Label>
-          <span className="text-sm text-muted-foreground">{rate.toFixed(1)}×</span>
+          <span className="text-sm text-muted">{rate.toFixed(1)}×</span>
         </div>
         <input
           id="tts-rate"
@@ -230,10 +231,11 @@ export function TtsControls({
           className="h-11 w-full accent-primary"
         />
       </div>
-      <Button type="button" variant="outline" className="h-11" onClick={preview}>
-        ▶ Preview voice
+      <Button type="button" variant="secondary" className="h-11" onClick={preview}>
+        <Play className="size-4" aria-hidden />
+        Preview voice
       </Button>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }

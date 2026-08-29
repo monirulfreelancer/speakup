@@ -6,10 +6,11 @@ import { getSocket } from "@/lib/realtime/socket";
 import type { IcePayload, SdpPayload } from "@/lib/realtime/events";
 import { isPolitePeer, VoiceCall, type CallStats, type ConnectionState } from "@/lib/rtc/peer";
 import { Ringtone } from "@/lib/rtc/ringtone";
-import { LevelBadge } from "@/components/level-badge";
+import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/avatar";
+import { Mic, MicOff, PhoneOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AudioMeter } from "@/components/speech/audio-meter";
+import { AudioRing } from "@/components/speech/audio-meter";
 import { PostCall } from "./post-call";
 import type { CefrLevel } from "@/generated/prisma/enums";
 
@@ -84,16 +85,16 @@ function formatClock(totalSeconds: number): string {
 }
 
 function qualityLabel(stats: CallStats | null): { label: string; tone: string } {
-  if (!stats) return { label: "Measuring", tone: "text-muted-foreground" };
+  if (!stats) return { label: "Measuring…", tone: "text-muted" };
   const total = stats.packetsReceived + stats.packetsLost;
   const lossPct = total > 0 ? (stats.packetsLost / total) * 100 : 0;
   if (lossPct > 5 || (stats.roundTripMs ?? 0) > 400) {
-    return { label: "Poor connection", tone: "text-red-600 dark:text-red-400" };
+    return { label: "Poor connection", tone: "text-danger" };
   }
   if (lossPct > 2 || stats.candidatePairType === "relay") {
-    return { label: "Fair connection", tone: "text-amber-600 dark:text-amber-400" };
+    return { label: "Fair connection", tone: "text-warning" };
   }
-  return { label: "Good connection", tone: "text-green-600 dark:text-green-400" };
+  return { label: "Good connection", tone: "text-success" };
 }
 
 export function CallScreen(props: Props) {
@@ -428,79 +429,86 @@ export function CallScreen(props: Props) {
   const quality = qualityLabel(stats);
 
   return (
-    <main className="mx-auto flex min-h-[calc(100dvh-5rem)] max-w-md flex-col justify-between p-4 md:min-h-dvh md:p-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-between p-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
       <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
 
-      <section className="space-y-4 pt-8 text-center">
-        <Avatar
-          user={{
-            id: props.partnerUserId,
-            displayName: props.partnerName,
-            avatarUpdatedAt: props.partnerAvatarUpdatedAt,
-          }}
-          size={96}
-          className="mx-auto"
-          priority
-        />
+      <section className="space-y-4 pt-10 text-center">
+        <AudioRing stream={remoteStream} className="mx-auto">
+          <Avatar
+            user={{
+              id: props.partnerUserId,
+              displayName: props.partnerName,
+              avatarUpdatedAt: props.partnerAvatarUpdatedAt,
+            }}
+            size={128}
+            priority
+          />
+        </AudioRing>
 
-        <div className="space-y-1">
-          <h1 className="text-xl font-bold">{props.partnerName}</h1>
-          {props.partnerLevel && <LevelBadge level={props.partnerLevel} />}
+        <div className="space-y-2">
+          <h1 className="text-2xl">{props.partnerName}</h1>
+          {props.partnerLevel && <Badge level={props.partnerLevel} />}
         </div>
 
-        <p className="text-sm tabular-nums text-muted-foreground" aria-live="polite">
+        <p
+          className={`font-extrabold tabular-nums ${phase === "connected" ? "text-4xl" : "text-base text-muted"}`}
+          aria-live="polite"
+        >
           {phase === "outgoing" && `Calling ${props.partnerName}…`}
           {phase === "incoming" && "Incoming call"}
           {phase === "connecting" &&
             (connectionState === "reconnecting" ? "Reconnecting…" : "Connecting…")}
           {phase === "connected" && formatClock(elapsed)}
         </p>
-        {phase === "connected" && <p className={`text-xs ${quality.tone}`}>{quality.label}</p>}
+        {phase === "connected" && (
+          <p className={`text-xs font-bold ${quality.tone}`}>{quality.label}</p>
+        )}
 
         {props.topic && phase !== "incoming" && (
-          <p className="rounded-xl bg-accent p-3 text-sm">
-            Talk about {props.topic.icon} <span className="font-medium">{props.topic.title}</span>
+          <p className="mx-auto max-w-xs rounded-2xl bg-surface-raised p-3 text-sm font-semibold">
+            Talk about {props.topic.icon}{" "}
+            <span className="font-extrabold">{props.topic.title}</span>
           </p>
         )}
       </section>
 
-      <section className="space-y-6 pb-6">
-        {phase === "connected" && (
-          <div className="flex items-end justify-center gap-8">
-            <div className="space-y-1 text-center">
-              <AudioMeter stream={muted ? null : localStream} />
-              <p className="text-xs text-muted-foreground">You</p>
-            </div>
-            <div className="space-y-1 text-center">
-              <AudioMeter stream={remoteStream} />
-              <p className="text-xs text-muted-foreground">{props.partnerName}</p>
-            </div>
-          </div>
-        )}
-
+      <section className="space-y-6">
         {phase === "outgoing" && (
           <div className="flex justify-center">
-            <Button variant="destructive" className="h-14 rounded-full px-8" onClick={cancelOutgoing}>
+            <Button variant="danger" size="lg" onClick={cancelOutgoing}>
               Cancel
             </Button>
           </div>
         )}
 
         {(phase === "connecting" || phase === "connected") && (
-          <div className="flex justify-center gap-3">
-            <Button
-              variant={muted ? "default" : "outline"}
-              className="size-14 rounded-full text-xl"
-              onClick={toggleMute}
-              aria-pressed={muted}
-              aria-label={muted ? "Unmute microphone" : "Mute microphone"}
-              disabled={phase !== "connected"}
+          <div className="flex items-center justify-center gap-6">
+            {/* Local mic level rings the mute button while unmuted. */}
+            <AudioRing stream={muted ? null : localStream}>
+              <button
+                type="button"
+                onClick={toggleMute}
+                aria-pressed={muted}
+                aria-label={muted ? "Unmute microphone" : "Mute microphone"}
+                disabled={phase !== "connected"}
+                className={`btn-3d flex size-16 items-center justify-center rounded-full active:btn-3d-press disabled:opacity-50 disabled:shadow-none ${
+                  muted
+                    ? "bg-surface-raised text-text [--btn-edge:var(--line)]"
+                    : "bg-surface text-text [--btn-edge:var(--line)]"
+                }`}
+              >
+                {muted ? <MicOff className="size-6" aria-hidden /> : <Mic className="size-6" aria-hidden />}
+              </button>
+            </AudioRing>
+
+            <button
+              type="button"
+              onClick={hangUp}
+              aria-label="End call"
+              className="btn-3d flex size-20 items-center justify-center rounded-full bg-danger text-white [--btn-edge:var(--danger-dark)] active:btn-3d-press"
             >
-              {muted ? "🔇" : "🎙️"}
-            </Button>
-            <Button variant="destructive" className="h-14 rounded-full px-8 font-medium" onClick={hangUp}>
-              End call
-            </Button>
+              <PhoneOff className="size-8" aria-hidden />
+            </button>
           </div>
         )}
       </section>

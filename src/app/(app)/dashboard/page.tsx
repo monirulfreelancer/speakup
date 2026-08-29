@@ -1,20 +1,44 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Flame, Clock, MessageCircle, Users, Mic, ArrowRight } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { LevelBadge } from "@/components/level-badge";
-import { Avatar } from "@/components/avatar";
-import { Card, CardContent } from "@/components/ui/card";
-import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { env } from "@/lib/env";
+import { Avatar } from "@/components/avatar";
+import { Badge } from "@/components/ui/badge";
+import { StatTile } from "@/components/ui/stat-tile";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 
-export const metadata = { title: "Dashboard — SpeakUp" };
+export const metadata = { title: "Home — SpeakUp" };
 
-function formatSpeakingTime(totalSeconds: number): string {
-  if (totalSeconds < 60) return `${totalSeconds}s`;
-  const minutes = Math.floor(totalSeconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+/*
+ * Streak = consecutive days, counting back from today, on which the user
+ * completed at least one session. Computed from the sessions themselves
+ * rather than read from UserStats.currentStreak, which nothing maintains
+ * and which would therefore always read zero.
+ */
+function streakFromDays(days: Date[]): number {
+  if (days.length === 0) return 0;
+  const asKey = (d: Date) => d.toISOString().slice(0, 10);
+  const seen = new Set(days.map(asKey));
+
+  const cursor = new Date();
+  // Practising yesterday but not yet today still counts as a live streak.
+  if (!seen.has(asKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+
+  let streak = 0;
+  while (seen.has(asKey(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
 }
 
 export default async function DashboardPage() {
@@ -25,7 +49,6 @@ export default async function DashboardPage() {
     where: { id: session.user.id },
     select: {
       name: true,
-      photoUrl: true,
       avatarUpdatedAt: true,
       cefrLevel: true,
       onboardedAt: true,
@@ -36,151 +59,85 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
   if (!user.onboardedAt || !user.cefrLevel) redirect("/onboarding");
 
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - 7);
+  const completed = await db.practiceSession.findMany({
+    where: { userId: session.user.id, status: "COMPLETED" },
+    select: { startedAt: true },
+    orderBy: { startedAt: "desc" },
+    take: 400,
+  });
 
-  const [sessionsThisWeek, recentSessions] = await Promise.all([
-    db.practiceSession.count({
-      where: { userId: session.user.id, startedAt: { gte: weekStart } },
-    }),
-    db.practiceSession.findMany({
-      where: { userId: session.user.id },
-      orderBy: { startedAt: "desc" },
-      take: 5,
-      include: { topic: { select: { title: true, icon: true } } },
-    }),
-  ]);
-
-  const stats = user.stats;
-  const allZero =
-    !stats || (stats.currentStreak === 0 && stats.totalSeconds === 0 && sessionsThisWeek === 0);
+  const streak = streakFromDays(completed.map((s) => s.startedAt));
+  const minutes = Math.round((user.stats?.totalSeconds ?? 0) / 60);
+  const conversations = user.stats?.sessionsCount ?? 0;
 
   return (
-    <main className="mx-auto max-w-2xl space-y-6 p-4 md:p-8">
-      {/* Install nudge — only after the first completed session. */}
-      <InstallPrompt eligible={(stats?.sessionsCount ?? 0) >= 1} />
-      {/* Header */}
+    <main className="mx-auto w-full max-w-2xl space-y-6 p-4 md:p-8">
+      <InstallPrompt eligible={conversations >= 1} />
+
       <header className="flex items-center gap-3">
         <Avatar
-          user={{ id: session.user.id, displayName: user.name, avatarUpdatedAt: user.avatarUpdatedAt }}
-          size={48}
+          user={{
+            id: session.user.id,
+            displayName: user.name,
+            avatarUpdatedAt: user.avatarUpdatedAt,
+          }}
+          size={56}
           priority
         />
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-xl font-bold">{user.name}</h1>
-          <p className="text-sm text-muted-foreground">Ready to practice?</p>
+          <p className="text-sm font-semibold text-muted">{greeting()},</p>
+          <h1 className="truncate text-2xl">{user.name}</h1>
         </div>
-        <LevelBadge level={user.cefrLevel} />
+        <Badge level={user.cefrLevel} />
       </header>
 
-      {/* Primary actions. With AI hidden there is only one card, so the grid
-          collapses to a single column rather than leaving a gap. */}
-      <div className={`grid gap-3 ${env.AI_MODE_ENABLED ? "sm:grid-cols-2" : ""}`}>
-        {env.AI_MODE_ENABLED && (
-        <Link
-          href="/practice/ai"
-          className="flex min-h-32 flex-col justify-between rounded-2xl bg-primary p-5 text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          <span className="text-3xl" aria-hidden>
-            🤖
-          </span>
-          <span>
-            <span className="block text-lg font-bold">Talk with AI</span>
-            <span className="block text-sm opacity-80">Practice any time, no pressure</span>
-          </span>
-        </Link>
-        )}
+      <section aria-label="Your progress" className="grid grid-cols-3 gap-3">
+        <StatTile icon={Flame} value={streak} label="day streak" tone="warning" />
+        <StatTile icon={Clock} value={minutes} label="minutes" tone="primary" />
+        <StatTile icon={MessageCircle} value={conversations} label="conversations" />
+      </section>
+
+      {/* The one obvious thing to do next. */}
+      <section className="space-y-3">
         {user.isAdult ? (
           <Link
             href="/people"
-            className="flex min-h-32 flex-col justify-between rounded-2xl border-2 p-5 transition-colors hover:bg-accent"
+            className="btn-3d flex min-h-32 items-center gap-4 rounded-3xl bg-primary p-5 text-on-primary [--btn-edge:var(--primary-dark)] active:btn-3d-press"
           >
-            <span className="text-3xl" aria-hidden>
-              🧑‍🤝‍🧑
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-on-primary/20">
+              <Users className="size-7" aria-hidden />
             </span>
-            <span>
-              <span className="block text-lg font-bold">Talk with a Person</span>
-              <span className="block text-sm text-muted-foreground">
-                Browse learners and pick someone
+            <span className="min-w-0 flex-1">
+              <span className="block text-xl font-extrabold">Find someone to talk to</span>
+              <span className="block text-sm opacity-90">
+                Browse learners at your level and start a call
               </span>
             </span>
+            <ArrowRight className="size-6 shrink-0" aria-hidden />
           </Link>
         ) : (
-          <div
-            aria-disabled
-            className="flex min-h-32 flex-col justify-between rounded-2xl border-2 border-dashed p-5 opacity-60"
-          >
-            <span className="text-3xl" aria-hidden>
-              🧑‍🤝‍🧑
+          <div className="flex min-h-32 items-center gap-4 rounded-3xl border-2 border-dashed border-line p-5">
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-surface-raised">
+              <Users className="size-7 text-muted" aria-hidden />
             </span>
             <span>
-              <span className="block text-lg font-bold">Talk with a Person</span>
-              <span className="block text-sm text-muted-foreground">
-                Partner practice is 18+ — your AI partner is always here
+              <span className="block text-lg font-extrabold">Partner practice is 18+</span>
+              <span className="block text-sm text-muted">
+                Talking with strangers is limited to adults for now.
               </span>
             </span>
           </div>
         )}
-      </div>
 
-      {/* Stats strip */}
-      {allZero ? (
-        <Card>
-          <CardContent className="px-5 py-1 text-center text-sm text-muted-foreground">
-            Your first conversation is waiting — your streak and speaking time will show up here.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-3 gap-3">
-          <Card>
-            <CardContent className="px-4 text-center">
-              <p className="text-2xl font-bold">🔥 {stats?.currentStreak ?? 0}</p>
-              <p className="text-xs text-muted-foreground">day streak</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="px-4 text-center">
-              <p className="text-2xl font-bold">{formatSpeakingTime(stats?.totalSeconds ?? 0)}</p>
-              <p className="text-xs text-muted-foreground">speaking time</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="px-4 text-center">
-              <p className="text-2xl font-bold">{sessionsThisWeek}</p>
-              <p className="text-xs text-muted-foreground">this week</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Recent sessions */}
-      <section className="space-y-2">
-        <h2 className="font-semibold">Recent sessions</h2>
-        {recentSessions.length === 0 ? (
-          <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            No sessions yet. Tap “Talk with AI” above to start your first conversation.
-          </p>
-        ) : (
-          <ul className="divide-y rounded-lg border">
-            {recentSessions.map((s) => (
-              <li key={s.id} className="flex items-center gap-3 p-3">
-                <span className="text-xl" aria-hidden>
-                  {s.topic?.icon ?? "💬"}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{s.topic?.title ?? "Free talk"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {s.startedAt.toLocaleDateString("en-GB", {
-                      day: "numeric",
-                      month: "short",
-                    })}{" "}
-                    · {s.mode === "AI" ? "AI partner" : "Human partner"} ·{" "}
-                    {Math.max(1, Math.round(s.durationSeconds / 60))} min
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
+        {env.AI_MODE_ENABLED && (
+          <Link
+            href="/practice/ai"
+            className="flex min-h-16 items-center gap-3 rounded-2xl border-2 border-line bg-surface p-4 font-bold transition-colors hover:bg-surface-raised"
+          >
+            <Mic className="size-5 text-primary" aria-hidden />
+            Practice with the AI partner
+            <ArrowRight className="ml-auto size-5 text-muted" aria-hidden />
+          </Link>
         )}
       </section>
     </main>

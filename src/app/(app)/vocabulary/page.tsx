@@ -8,7 +8,7 @@ export default function VocabularyPage() {
         📖
       </span>
       <h1 className="text-xl font-bold">Vocabulary</h1>
-      <p className="max-w-sm text-sm text-muted-foreground">
+      <p className="max-w-sm text-sm text-muted">
         Soon you’ll be able to save words from your conversations and review them here.
       </p>
     </main>

@@ -1,24 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Nunito } from "next/font/google";
 import "./globals.css";
 import { SwRegister } from "@/components/pwa/sw-register";
+import { ThemeProvider } from "@/components/theme-provider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/*
+ * Nunito: rounded and friendly, which is the whole visual brief. Loaded
+ * through next/font so it is self-hosted (no third-party request, no
+ * layout shift while it downloads).
+ */
+const nunito = Nunito({
+  variable: "--font-nunito",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "600", "700", "800"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "SpeakUp — English Speaking Practice",
   description: "Practice speaking English with an AI partner — or a real person.",
-  // Apple has no manifest support worth speaking of; these emit the
-  // apple-mobile-web-app meta tags plus the touch icon, so Add to Home
-  // Screen on iPhone gets a proper name, icon and standalone chrome.
   appleWebApp: {
     capable: true,
     title: "SpeakUp",
@@ -27,28 +27,27 @@ export const metadata: Metadata = {
   icons: {
     apple: "/icons/apple-touch-icon.png",
   },
-  other: {
-    // Next 16 emits only the modern `mobile-web-app-capable`. iOS before
-    // 15.4 reads the apple-prefixed tag instead, and without it those
-    // iPhones open the home-screen shortcut in a plain Safari tab rather
-    // than standalone. Cheap to keep, and this app targets older phones.
-    "apple-mobile-web-app-capable": "yes",
-  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#171717",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f9fc" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f1620" },
+  ],
+  // The call screen and bottom tabs sit against the phone's edges.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-        <SwRegister />
-        {children}
+    // suppressHydrationWarning: next-themes sets the class on <html> before
+    // React hydrates, which is exactly what prevents the wrong-theme flash.
+    <html lang="en" className={`${nunito.variable} h-full`} suppressHydrationWarning>
+      <body className="flex min-h-full flex-col bg-background text-text">
+        <ThemeProvider>
+          <SwRegister />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -197,14 +197,14 @@ export function ProfileForm({
                 </Button>
               )}
               {avatarVersion && !pendingFile && (
-                <Button variant="outline" className="h-11" onClick={removePhoto} disabled={photoBusy}>
+                <Button variant="secondary" className="h-11" onClick={removePhoto} disabled={photoBusy}>
                   Remove photo
                 </Button>
               )}
             </div>
           </div>
         </div>
-        {photoError && <p className="text-sm text-destructive">{photoError}</p>}
+        {photoError && <p className="text-sm text-danger">{photoError}</p>}
       </div>
 
       {/* Name */}
@@ -219,8 +219,8 @@ export function ProfileForm({
             dirty();
           }}
         />
-        {errorField === "name" && <p className="text-sm text-destructive">{error}</p>}
-        <p className="text-xs text-muted-foreground">
+        {errorField === "name" && <p className="text-sm text-danger">{error}</p>}
+        <p className="text-xs text-muted">
           This is the only thing other learners see. Your email is never shown.
         </p>
       </div>
@@ -240,19 +240,19 @@ export function ProfileForm({
               }}
               className={`min-h-11 rounded-lg border font-mono font-bold transition-colors ${
                 level === l.value
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "hover:bg-accent"
+                  ? "border-primary bg-primary text-on-primary"
+                  : "hover:bg-surface-raised"
               }`}
             >
               {l.value}
             </button>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted">
           This decides who you are matched with in the directory and how simply the AI partner
           speaks to you. Change it whenever it stops fitting.
         </p>
-        {errorField === "cefrLevel" && <p className="text-sm text-destructive">{error}</p>}
+        {errorField === "cefrLevel" && <p className="text-sm text-danger">{error}</p>}
       </div>
 
       {/* Bio */}
@@ -261,7 +261,7 @@ export function ProfileForm({
           <Label htmlFor="profile-bio">About you</Label>
           <span
             className={`text-xs tabular-nums ${
-              bio.length > MAX_BIO_LENGTH ? "text-destructive" : "text-muted-foreground"
+              bio.length > MAX_BIO_LENGTH ? "text-danger" : "text-muted"
             }`}
           >
             {bio.length}/{MAX_BIO_LENGTH}
@@ -278,14 +278,14 @@ export function ProfileForm({
           placeholder="A sentence or two about you and what you want to practise."
           className="min-h-24 w-full rounded-lg border bg-background p-3 text-sm"
         />
-        {errorField === "bio" && <p className="text-sm text-destructive">{error}</p>}
+        {errorField === "bio" && <p className="text-sm text-danger">{error}</p>}
       </div>
 
       {/* Interests */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label>Interests</Label>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted">
             {interests.length}/{MAX_INTERESTS} chosen
           </span>
         </div>
@@ -309,7 +309,7 @@ export function ProfileForm({
                 disabled={!selected && atLimit}
                 aria-pressed={selected}
                 className={`min-h-11 rounded-full border px-4 text-sm transition-colors disabled:opacity-40 ${
-                  selected ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent"
+                  selected ? "border-primary bg-primary text-on-primary" : "hover:bg-surface-raised"
                 }`}
               >
                 {interest.label}
@@ -318,19 +318,19 @@ export function ProfileForm({
           })}
         </div>
         {atLimit && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted">
             That is the maximum. Unpick one to choose another.
           </p>
         )}
-        {errorField === "interests" && <p className="text-sm text-destructive">{error}</p>}
+        {errorField === "interests" && <p className="text-sm text-danger">{error}</p>}
       </div>
 
       <div className="flex items-center gap-3">
         <Button className="h-11" onClick={save} disabled={pending}>
           {pending ? "Saving…" : "Save profile"}
         </Button>
-        {saved && <span className="text-sm text-green-600 dark:text-green-400">Saved</span>}
-        {error && !errorField && <span className="text-sm text-destructive">{error}</span>}
+        {saved && <span className="text-sm text-success">Saved</span>}
+        {error && !errorField && <span className="text-sm text-danger">{error}</span>}
       </div>
     </div>
   );

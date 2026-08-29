@@ -83,8 +83,8 @@ export function PermissionGate({ children }: { children: (stream: MediaStream) =
           🎙️🚫
         </span>
         <h2 className="font-semibold">Microphone access is blocked</h2>
-        <p className="text-sm text-muted-foreground">{recoveryInstructions()}</p>
-        <Button variant="outline" className="h-11" onClick={() => window.location.reload()}>
+        <p className="text-sm text-muted">{recoveryInstructions()}</p>
+        <Button variant="secondary" className="h-11" onClick={() => window.location.reload()}>
           I’ve allowed it — reload
         </Button>
       </div>
@@ -97,7 +97,7 @@ export function PermissionGate({ children }: { children: (stream: MediaStream) =
         🎙️
       </span>
       <h2 className="font-semibold">SpeakUp needs your microphone</h2>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-muted">
         Speaking practice means speaking — your browser will ask for microphone access once.
       </p>
       <Button className="h-11 w-full" onClick={request} disabled={state === "requesting"}>

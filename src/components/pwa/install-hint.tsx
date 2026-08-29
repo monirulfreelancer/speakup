@@ -41,19 +41,19 @@ export function InstallHint() {
         <span aria-hidden>📲</span> Keep it on your home screen
       </h2>
       {hint === "ios" ? (
-        <p className="pt-1 text-sm text-muted-foreground">
+        <p className="pt-1 text-sm text-muted">
           Tap the Share button in Safari, scroll down, then tap &ldquo;Add to Home Screen&rdquo;.
           SpeakUp opens full screen like a normal app.
         </p>
       ) : (
         <>
-          <p className="pt-1 text-sm text-muted-foreground">
+          <p className="pt-1 text-sm text-muted">
             Add SpeakUp to your home screen and it opens with one tap, full screen, no browser bar.
           </p>
           <button
             type="button"
             onClick={() => void promptInstall()}
-            className="mt-3 flex h-11 items-center justify-center rounded-lg border px-4 text-sm font-medium hover:bg-accent"
+            className="mt-3 flex h-11 items-center justify-center rounded-lg border px-4 text-sm font-medium hover:bg-surface-raised"
           >
             Add to home screen
           </button>

@@ -65,19 +65,19 @@ export function PracticeFlow({ topics, level }: { topics: Topic[]; level: string
     <main className="mx-auto max-w-2xl space-y-6 p-4 md:p-8">
       <div>
         <h1 className="text-2xl font-bold">What shall we talk about?</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted">
           Topics matched to your level ({level}) — or just talk about anything.
         </p>
       </div>
 
-      {error && <p className="rounded-lg border border-destructive/50 p-3 text-sm text-destructive">{error}</p>}
+      {error && <p className="rounded-lg border border-danger p-3 text-sm text-danger">{error}</p>}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"
           disabled={pending}
           onClick={() => pickTopic(null)}
-          className="flex min-h-24 flex-col justify-between rounded-2xl bg-primary p-4 text-left text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex min-h-24 flex-col justify-between rounded-2xl bg-primary p-4 text-left text-on-primary transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           <span className="text-2xl" aria-hidden>💬</span>
           <span>
@@ -91,12 +91,12 @@ export function PracticeFlow({ topics, level }: { topics: Topic[]; level: string
             type="button"
             disabled={pending}
             onClick={() => pickTopic(topic)}
-            className="flex min-h-24 flex-col justify-between rounded-2xl border p-4 text-left transition-colors hover:bg-accent disabled:opacity-50"
+            className="flex min-h-24 flex-col justify-between rounded-2xl border p-4 text-left transition-colors hover:bg-surface-raised disabled:opacity-50"
           >
             <span className="text-2xl" aria-hidden>{topic.icon}</span>
             <span>
               <span className="block font-bold">{topic.title}</span>
-              <span className="block text-sm text-muted-foreground">{topic.description}</span>
+              <span className="block text-sm text-muted">{topic.description}</span>
             </span>
           </button>
         ))}

@@ -28,7 +28,7 @@ export default async function PeoplePage({
       <main className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center">
         <span className="text-4xl" aria-hidden>🧑‍🤝‍🧑</span>
         <h1 className="text-xl font-bold">Partner practice is 18+</h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
+        <p className="max-w-sm text-sm text-muted">
           Talking with strangers is limited to adults for now. Your AI partner is available any
           time.
         </p>

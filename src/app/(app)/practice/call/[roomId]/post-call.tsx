@@ -2,13 +2,17 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { Clock, Star, Users } from "lucide-react";
 import { blockPartner, ratePartner, reportPartner } from "@/server/actions/call";
 import { Button } from "@/components/ui/button";
+import { Sheet } from "@/components/ui/sheet";
+import { StatTile } from "@/components/ui/stat-tile";
 
 /*
- * Post-call screen: rate the partner, and report or block them if the
- * conversation went badly. Report and block are deliberately one tap away
- * from every call — burying them is how a practice product becomes unsafe.
+ * Post-call: a friendly summary first, the rating second, and the serious
+ * actions as quiet text links underneath. Report and Block stay one tap
+ * away — burying them is how a practice product becomes unsafe — but they
+ * should not be the first thing a thumb lands on after a good chat.
  */
 
 const REASONS = [
@@ -25,14 +29,18 @@ export function PostCall({
   partnerName,
   note,
   onDone,
+  minutes,
+  topicTitle,
 }: {
   matchId: string;
   partnerName: string;
   note: string | null;
   onDone: () => void;
+  minutes?: number;
+  topicTitle?: string | null;
 }) {
   const [rating, setRating] = useState(0);
-  const [view, setView] = useState<"rate" | "report">("rate");
+  const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState<string>("");
   const [detail, setDetail] = useState("");
   const [blocked, setBlocked] = useState(false);
@@ -62,8 +70,10 @@ export function PostCall({
       const result = await reportPartner({ matchId, reason, note: detail || undefined }).catch(
         () => ({ ok: false as const, error: "Could not send the report." }),
       );
-      if (result.ok) setReported(true);
-      else setError(result.error);
+      if (result.ok) {
+        setReported(true);
+        setReporting(false);
+      } else setError(result.error);
     });
   }
 
@@ -80,104 +90,123 @@ export function PostCall({
   }
 
   return (
-    <main className="mx-auto max-w-md space-y-6 p-4 md:p-8">
-      <div className="space-y-1 text-center">
-        <span className="text-4xl" aria-hidden>👋</span>
-        <h1 className="text-xl font-bold">Call ended</h1>
-        {note && <p className="text-sm text-muted-foreground">{note}</p>}
+    <main className="mx-auto w-full max-w-md space-y-6 p-6">
+      <div className="space-y-2 pt-6 text-center">
+        <h1 className="text-2xl">Nice work</h1>
+        <p className="text-sm text-muted">
+          {note ?? `That is more English practice than yesterday.`}
+        </p>
       </div>
 
-      {view === "rate" ? (
-        <>
-          <section className="space-y-3 rounded-2xl border p-5 text-center">
-            <p className="font-medium">How was your conversation with {partnerName}?</p>
-            <div className="flex justify-center gap-1">
-              {[1, 2, 3, 4, 5].map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => submitRating(value)}
-                  aria-label={`${value} star${value > 1 ? "s" : ""}`}
-                  className={`flex size-12 items-center justify-center rounded-lg text-2xl transition-colors hover:bg-accent ${
-                    value <= rating ? "opacity-100" : "opacity-30"
-                  }`}
-                >
-                  ⭐
-                </button>
-              ))}
-            </div>
-            {rating > 0 && <p className="text-sm text-muted-foreground">Thanks, that helps.</p>}
-          </section>
-
-          <section className="space-y-2">
-            {blocked ? (
-              <p className="rounded-lg bg-accent p-3 text-center text-sm">
-                Blocked. You will never be matched with {partnerName} again.
-              </p>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" className="h-11" onClick={() => setView("report")}>
-                  Report
-                </Button>
-                <Button variant="outline" className="h-11" onClick={block}>
-                  Block
-                </Button>
-              </div>
-            )}
-            {reported && (
-              <p className="rounded-lg bg-accent p-3 text-center text-sm">
-                Report sent. Our moderators will look at it.
-              </p>
-            )}
-          </section>
-        </>
-      ) : (
-        <section className="space-y-3 rounded-2xl border p-5">
-          <p className="font-medium">What went wrong?</p>
-          <div className="space-y-2">
-            {REASONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setReason(option.value)}
-                className={`flex min-h-11 w-full items-center rounded-lg border px-3 text-left text-sm ${
-                  reason === option.value ? "border-primary bg-accent" : "hover:bg-accent/50"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <textarea
-            value={detail}
-            onChange={(e) => setDetail(e.target.value)}
-            placeholder="Anything else we should know? (optional)"
-            className="min-h-20 w-full rounded-lg border bg-background p-3 text-sm"
+      {(minutes !== undefined || topicTitle) && (
+        <section className="grid grid-cols-2 gap-3">
+          <StatTile
+            icon={Clock}
+            value={minutes ?? 0}
+            label={minutes === 1 ? "minute spoken" : "minutes spoken"}
+            tone="primary"
           />
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" className="h-11" onClick={() => setView("rate")}>
-              Cancel
-            </Button>
-            <Button className="h-11" onClick={submitReport} disabled={reported}>
-              {reported ? "Sent" : "Send report"}
-            </Button>
-          </div>
+          <StatTile icon={Users} value={topicTitle ? "1" : "1"} label={topicTitle ?? "free talk"} />
         </section>
       )}
 
-      {error && <p className="text-center text-sm text-destructive">{error}</p>}
+      <section className="space-y-3 rounded-2xl border-2 border-line bg-surface p-5 text-center">
+        <p className="font-bold">How was your conversation with {partnerName}?</p>
+        <div className="flex justify-center gap-1">
+          {[1, 2, 3, 4, 5].map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => submitRating(value)}
+              aria-label={`${value} star${value > 1 ? "s" : ""}`}
+              className="flex size-12 items-center justify-center rounded-xl transition-transform hover:bg-surface-raised active:scale-95"
+            >
+              <Star
+                className={`size-7 ${value <= rating ? "fill-warning text-warning" : "text-line"}`}
+                aria-hidden
+              />
+            </button>
+          ))}
+        </div>
+        {rating > 0 && <p className="text-sm font-semibold text-success">Thanks, that helps.</p>}
+      </section>
 
-      <div className="grid gap-2">
+      {blocked && (
+        <p className="rounded-2xl bg-surface-raised p-3 text-center text-sm font-semibold">
+          Blocked. You will never be matched with {partnerName} again.
+        </p>
+      )}
+      {reported && (
+        <p className="rounded-2xl bg-surface-raised p-3 text-center text-sm font-semibold">
+          Report sent. Our moderators will look at it.
+        </p>
+      )}
+      {error && <p className="text-center text-sm font-semibold text-danger">{error}</p>}
+
+      <div className="space-y-2">
         <Link
-          href="/practice/human"
-          className="flex h-12 items-center justify-center rounded-lg bg-primary px-6 font-medium text-primary-foreground hover:opacity-90"
+          href="/people"
+          className="btn-3d flex min-h-14 items-center justify-center rounded-2xl bg-primary px-6 text-lg font-bold text-on-primary [--btn-edge:var(--primary-dark)] active:btn-3d-press"
         >
-          Find another partner
+          Find someone else
         </Link>
-        <Button variant="outline" className="h-11" onClick={onDone}>
-          Back to dashboard
+        <Button variant="secondary" fullWidth onClick={onDone}>
+          Back to home
         </Button>
       </div>
+
+      {/* Quiet, but never more than one tap away. */}
+      {!blocked && (
+        <div className="flex justify-center gap-6 pt-2">
+          <button
+            type="button"
+            onClick={() => setReporting(true)}
+            className="min-h-11 text-sm font-bold text-muted underline underline-offset-4 hover:text-danger"
+          >
+            Report
+          </button>
+          <button
+            type="button"
+            onClick={block}
+            className="min-h-11 text-sm font-bold text-muted underline underline-offset-4 hover:text-danger"
+          >
+            Block
+          </button>
+        </div>
+      )}
+
+      <Sheet open={reporting} onClose={() => setReporting(false)} title="What went wrong?">
+        <div className="space-y-2">
+          {REASONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setReason(option.value)}
+              className={`flex min-h-12 w-full items-center rounded-2xl border-2 px-4 text-left text-sm font-semibold ${
+                reason === option.value
+                  ? "border-primary bg-surface-raised"
+                  : "border-line hover:bg-surface-raised"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <textarea
+          value={detail}
+          onChange={(e) => setDetail(e.target.value)}
+          placeholder="Anything else we should know? (optional)"
+          className="mt-3 min-h-20 w-full rounded-2xl border-2 border-line bg-surface p-3 text-sm"
+        />
+        <div className="grid grid-cols-2 gap-2 pt-3">
+          <Button variant="secondary" onClick={() => setReporting(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={submitReport}>
+            Send report
+          </Button>
+        </div>
+      </Sheet>
     </main>
   );
 }

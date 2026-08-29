@@ -39,10 +39,10 @@ export function InstallSettingsEntry() {
       <div className="flex min-h-11 items-center justify-between gap-4">
         <div>
           <p className="text-sm font-medium">Install app</p>
-          <p className="text-xs text-muted-foreground">One-tap practice from your home screen</p>
+          <p className="text-xs text-muted">One-tap practice from your home screen</p>
         </div>
         <Button
-          variant="outline"
+          variant="secondary"
           className="h-11"
           onClick={() => {
             if (state === "native") void promptInstall();
@@ -53,14 +53,14 @@ export function InstallSettingsEntry() {
         </Button>
       </div>
       {state === "ios" && showIosSteps && (
-        <ol className="list-inside list-decimal rounded-lg bg-accent p-3 text-sm text-muted-foreground">
+        <ol className="list-inside list-decimal rounded-lg bg-surface-raised p-3 text-sm text-muted">
           <li>Tap the Share button (the square with an arrow) in Safari</li>
           <li>Scroll down and tap “Add to Home Screen”</li>
           <li>Tap “Add” — SpeakUp appears with your other apps</li>
         </ol>
       )}
       {state === "unavailable" && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted">
           Your browser will offer installation once it considers the app ready — or use its menu:
           “Install app” / “Add to Home screen”.
         </p>

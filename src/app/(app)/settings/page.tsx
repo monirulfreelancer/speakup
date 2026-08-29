@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { LogOut } from "lucide-react";
 import { InstallSettingsEntry } from "@/components/pwa/install-settings-entry";
 import { ProfileForm } from "@/components/profile-form";
 import {
@@ -36,13 +38,13 @@ export default async function SettingsPage() {
   const settings = user.settings;
 
   return (
-    <main className="mx-auto max-w-2xl space-y-8 p-4 md:p-8">
-      <h1 className="text-2xl font-bold">Settings</h1>
+    <main className="mx-auto w-full max-w-2xl space-y-8 p-4 md:p-8">
+      <h1 className="text-2xl">Settings</h1>
 
       <section className="space-y-3">
         <div>
-          <h2 className="font-semibold">Your profile</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-lg">Your profile</h2>
+          <p className="text-sm text-muted">
             What other learners see when they find you in the directory.
           </p>
         </div>
@@ -58,8 +60,8 @@ export default async function SettingsPage() {
 
       <section className="space-y-3">
         <div>
-          <h2 className="font-semibold">English-only reminders</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-lg">English-only reminders</h2>
+          <p className="text-sm text-muted">
             What happens when you slip into your native language.
           </p>
         </div>
@@ -67,7 +69,7 @@ export default async function SettingsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Voice</h2>
+        <h2 className="text-lg">Voice</h2>
         <TtsControls
           initialVoice={settings?.ttsVoice ?? null}
           initialRate={settings?.ttsRate ?? 1.0}
@@ -75,7 +77,17 @@ export default async function SettingsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">App</h2>
+        <div>
+          <h2 className="text-lg">Appearance</h2>
+          <p className="text-sm text-muted">
+            System follows your phone&apos;s light or dark setting.
+          </p>
+        </div>
+        <ThemeToggle />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg">Account</h2>
         <UiLanguageSelect current={settings?.uiLanguage ?? "en"} />
         <NotificationsToggle initial={settings?.notificationsEnabled ?? false} />
         <InstallSettingsEntry />
@@ -88,7 +100,8 @@ export default async function SettingsPage() {
             await signOut({ redirectTo: "/login" });
           }}
         >
-          <Button variant="outline" type="submit" className="h-11 w-full sm:w-auto">
+          <Button variant="secondary" type="submit">
+            <LogOut className="size-4" aria-hidden />
             Sign out
           </Button>
         </form>

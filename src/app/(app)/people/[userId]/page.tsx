@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getPersonProfile } from "@/server/people";
 import { interestLabel } from "@/lib/interests";
-import { LevelBadge } from "@/components/level-badge";
+import { Badge } from "@/components/ui/badge";
+import { StatTile } from "@/components/ui/stat-tile";
+import { Chip } from "@/components/ui/chip";
+import { ArrowLeft, Clock, MessageCircle, Star, UserX } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { PersonActions } from "./person-actions";
 import { PresenceDot } from "./presence-dot";
@@ -20,13 +23,15 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
   if (!person) {
     return (
       <main className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center">
-        <span className="text-4xl" aria-hidden>🔍</span>
-        <h1 className="text-xl font-bold">Profile not available</h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
+        <span className="flex size-14 items-center justify-center rounded-full bg-surface-raised">
+          <UserX className="size-7 text-muted" aria-hidden />
+        </span>
+        <h1 className="text-xl">Profile not available</h1>
+        <p className="max-w-sm text-sm text-muted">
           This person is not in your directory. They may have left, or one of you blocked the
           other.
         </p>
-        <Link href="/people" className="text-sm underline underline-offset-4">
+        <Link href="/people" className="text-sm font-bold text-primary underline underline-offset-4">
           Back to people
         </Link>
       </main>
@@ -40,9 +45,13 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
   });
 
   return (
-    <main className="mx-auto max-w-md space-y-6 p-4 md:p-8">
-      <Link href="/people" className="text-sm text-muted-foreground underline underline-offset-4">
-        ← People
+    <main className="mx-auto w-full max-w-md space-y-6 p-4 md:p-8">
+      <Link
+        href="/people"
+        className="inline-flex min-h-11 items-center gap-1 text-sm font-bold text-muted hover:text-text"
+      >
+        <ArrowLeft className="size-4" aria-hidden />
+        People
       </Link>
 
       <section className="space-y-3 text-center">
@@ -52,50 +61,40 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
           className="mx-auto"
           priority
         />
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">{person.name}</h1>
-          <div className="flex items-center justify-center gap-2">
-            {person.cefrLevel && <LevelBadge level={person.cefrLevel} />}
+        <div className="space-y-2">
+          <h1 className="text-2xl">{person.name}</h1>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {person.cefrLevel && <Badge level={person.cefrLevel} />}
             <PresenceDot userId={person.id} lastSeenAt={person.lastSeenAt?.toISOString() ?? null} />
           </div>
         </div>
-        {person.bio && <p className="text-sm text-muted-foreground">{person.bio}</p>}
+        {person.bio && <p className="text-sm text-muted">{person.bio}</p>}
       </section>
 
       {person.interests.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold">Interests</h2>
+          <h2 className="text-sm font-extrabold text-muted">Interests</h2>
           <div className="flex flex-wrap gap-2">
             {person.interests.map((interest) => (
-              <span key={interest} className="rounded-full bg-accent px-3 py-1 text-sm">
-                {interestLabel(interest)}
-              </span>
+              <Chip key={interest} label={interestLabel(interest)} />
             ))}
           </div>
         </section>
       )}
 
-      <section className="grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-xl border p-3">
-          <p className="text-xl font-bold">{minutes}</p>
-          <p className="text-xs text-muted-foreground">minutes practised</p>
-        </div>
-        <div className="rounded-xl border p-3">
-          <p className="text-xl font-bold">{person.stats?.sessionsCount ?? 0}</p>
-          <p className="text-xs text-muted-foreground">conversations</p>
-        </div>
-        <div className="rounded-xl border p-3">
-          {/* Withheld below three ratings: an average of one is not a rating. */}
-          <p className="text-xl font-bold">
-            {person.averageRating ? `${person.averageRating.toFixed(1)}★` : "—"}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {person.averageRating ? "average rating" : "not rated yet"}
-          </p>
-        </div>
+      <section className="grid grid-cols-3 gap-2">
+        <StatTile icon={Clock} value={minutes} label="minutes" tone="primary" />
+        <StatTile icon={MessageCircle} value={person.stats?.sessionsCount ?? 0} label="calls" />
+        {/* Withheld below three ratings: an average of one is not a rating. */}
+        <StatTile
+          icon={Star}
+          value={person.averageRating ? person.averageRating.toFixed(1) : "—"}
+          label={person.averageRating ? "rating" : "not rated"}
+          tone={person.averageRating ? "warning" : "default"}
+        />
       </section>
 
-      <p className="text-center text-xs text-muted-foreground">Member since {memberSince}</p>
+      <p className="text-center text-xs font-semibold text-muted">Member since {memberSince}</p>
 
       <PersonActions userId={person.id} name={person.name} />
     </main>

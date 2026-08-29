@@ -231,16 +231,16 @@ export function Conversation({
       <header className="flex items-center justify-between pb-3">
         <div>
           <h1 className="font-bold">{topicTitle ?? "Free talk"}</h1>
-          <p className="text-sm tabular-nums text-muted-foreground">{formatClock(elapsed)}</p>
+          <p className="text-sm tabular-nums text-muted">{formatClock(elapsed)}</p>
         </div>
-        <Button variant="outline" className="h-11" onClick={endSession} disabled={ending}>
+        <Button variant="secondary" className="h-11" onClick={endSession} disabled={ending}>
           {ending ? "Saving…" : "End session"}
         </Button>
       </header>
 
       <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto rounded-xl border p-3">
         {lines.length === 0 && !interim && (
-          <p className="p-4 text-center text-sm text-muted-foreground">
+          <p className="p-4 text-center text-sm text-muted">
             Tap the mic and say hello — your AI partner is listening.
           </p>
         )}
@@ -251,7 +251,7 @@ export function Conversation({
       </div>
 
       {error && (
-        <p className="mt-2 rounded-lg border border-destructive/50 p-2 text-center text-sm text-destructive">
+        <p className="mt-2 rounded-lg border border-danger p-2 text-center text-sm text-danger">
           {error}
         </p>
       )}

@@ -3,7 +3,6 @@
 import { useMemo, useState, useTransition } from "react";
 import { completeOnboarding } from "@/server/actions/onboarding";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -132,7 +131,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
   return (
     <div className="w-full max-w-lg space-y-6">
       <div className="space-y-1">
-        <p className="text-sm text-muted-foreground">Step {step} of 3</p>
+        <p className="text-sm text-muted">Step {step} of 3</p>
         <h1 className="text-2xl font-bold">
           {step === 1 && `Hi ${firstName}! What's your native language?`}
           {step === 2 && "How good is your English right now?"}
@@ -156,8 +155,8 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
                 onClick={() => setNativeLanguage(lang)}
                 className={`min-h-11 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
                   nativeLanguage === lang
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "hover:bg-accent"
+                    ? "border-primary bg-primary text-on-primary"
+                    : "hover:bg-surface-raised"
                 }`}
               >
                 {lang}
@@ -167,7 +166,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
               <button
                 type="button"
                 onClick={() => setNativeLanguage(languageQuery.trim())}
-                className="col-span-2 min-h-11 rounded-lg border px-3 py-2 text-left text-sm hover:bg-accent"
+                className="col-span-2 min-h-11 rounded-lg border px-3 py-2 text-left text-sm hover:bg-surface-raised"
               >
                 Use “{languageQuery.trim()}”
               </button>
@@ -187,32 +186,34 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
         <div className="space-y-4">
           <div className="grid gap-2">
             {LEVELS.map((level) => (
-              <Card
+              <button
+                type="button"
                 key={level.code}
                 onClick={() => setCefrLevel(level.code)}
-                className={`cursor-pointer py-3 transition-colors ${
-                  cefrLevel === level.code ? "border-primary bg-accent" : "hover:bg-accent/50"
+                aria-pressed={cefrLevel === level.code}
+                className={`flex min-h-14 items-baseline gap-3 rounded-2xl border-2 p-4 text-left transition-colors ${
+                  cefrLevel === level.code
+                    ? "border-primary bg-surface-raised"
+                    : "border-line bg-surface hover:bg-surface-raised"
                 }`}
               >
-                <CardContent className="flex items-baseline gap-3 px-4">
-                  <span className="w-8 shrink-0 font-mono text-lg font-bold">{level.code}</span>
-                  <span>
-                    <span className="font-medium">{level.label}.</span>{" "}
-                    <span className="text-sm text-muted-foreground">{level.blurb}</span>
-                  </span>
-                </CardContent>
-              </Card>
+                <span className="w-8 shrink-0 text-lg font-extrabold">{level.code}</span>
+                <span>
+                  <span className="font-bold">{level.label}.</span>{" "}
+                  <span className="text-sm text-muted">{level.blurb}</span>
+                </span>
+              </button>
             ))}
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted">
             Not sure? Most learners who can already chat a little pick <strong>B1</strong> — you
             can change it any time in settings.
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" className="h-11" onClick={() => setStep(1)}>
+            <Button variant="secondary" onClick={() => setStep(1)}>
               Back
             </Button>
-            <Button className="h-11 flex-1" disabled={!cefrLevel} onClick={() => setStep(3)}>
+            <Button fullWidth className="flex-1" disabled={!cefrLevel} onClick={() => setStep(3)}>
               Continue
             </Button>
           </div>
@@ -231,7 +232,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
               max={new Date().toISOString().slice(0, 10)}
             />
             {underage && (
-              <p className="text-sm text-destructive">
+              <p className="text-sm text-danger">
                 SpeakUp is for people aged 13 and over. We can’t create an account for you yet —
                 we’re sorry!
               </p>
@@ -248,13 +249,13 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
               speech recognition may send audio to its provider (e.g. Google, for Chrome).
             </span>
           </label>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
           <div className="flex gap-2">
-            <Button variant="outline" className="h-11" onClick={() => setStep(2)}>
+            <Button variant="secondary" onClick={() => setStep(2)}>
               Back
             </Button>
             <Button
-              className="h-11 flex-1"
+              fullWidth className="flex-1"
               disabled={!dateOfBirth || underage || !consent || pending}
               onClick={finish}
             >

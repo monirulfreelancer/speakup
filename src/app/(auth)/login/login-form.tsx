@@ -18,7 +18,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
         <Label htmlFor="email">Email</Label>
         <Input id="email" name="email" type="email" autoComplete="email" required />
         {state.fieldErrors?.email && (
-          <p className="text-sm text-destructive">{state.fieldErrors.email}</p>
+          <p className="text-sm text-danger">{state.fieldErrors.email}</p>
         )}
       </div>
       <div className="space-y-2">
@@ -31,10 +31,10 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
           required
         />
         {state.fieldErrors?.password && (
-          <p className="text-sm text-destructive">{state.fieldErrors.password}</p>
+          <p className="text-sm text-danger">{state.fieldErrors.password}</p>
         )}
       </div>
-      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+      {state.error && <p className="text-sm text-danger">{state.error}</p>}
       <Button type="submit" className="h-11 w-full" disabled={pending}>
         {pending ? "Logging in…" : "Log in"}
       </Button>

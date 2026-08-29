@@ -24,8 +24,10 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    theme_color: "#171717",
-    background_color: "#ffffff",
+    // Literal on purpose: a manifest cannot read CSS variables. Keep in step
+    // with --background / --surface in globals.css.
+    theme_color: "#f7f9fc",
+    background_color: "#f7f9fc",
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icons/icon-256.png", sizes: "256x256", type: "image/png" },

@@ -8,7 +8,7 @@ export default function OfflinePage() {
         📡
       </span>
       <h1 className="text-xl font-bold">You’re offline</h1>
-      <p className="max-w-sm text-sm text-muted-foreground">
+      <p className="max-w-sm text-sm text-muted">
         Speaking practice needs an internet connection — the AI partner, matching, and speech
         recognition all live on the network. Reconnect and try again.
       </p>

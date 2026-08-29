@@ -3,21 +3,22 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Phone, Search, SearchX, UserRound } from "lucide-react";
 import { usePresence } from "@/lib/realtime/use-presence";
 import { interestLabel } from "@/lib/interests";
 import { lastSeenLabel } from "@/lib/relative-time";
-import { LevelBadge } from "@/components/level-badge";
 import { Avatar } from "@/components/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Chip } from "@/components/ui/chip";
+import { EmptyState } from "@/components/ui/empty-state";
 import { loadMorePeople } from "@/server/actions/people";
 import { startCall } from "@/server/actions/call";
 import type { CefrLevel } from "@/generated/prisma/enums";
 
 /*
- * The people directory. The first page is server-rendered (so it indexes as
- * real content and appears instantly); "Load more" and the live green dots
- * are the only client-side work.
+ * The people directory. The first page is server-rendered; "Load more" and
+ * the live online dots are the only client-side work.
  *
  * Search and level filtering navigate, so the SERVER re-queries. Filtering
  * the already-loaded page in the browser would silently search only the
@@ -61,23 +62,6 @@ export function PeopleDirectory({
   const [callError, setCallError] = useState<string | null>(null);
   const [callingId, setCallingId] = useState<string | null>(null);
 
-  // Call straight from the row, without opening the profile first.
-  function callPerson(personId: string) {
-    setCallError(null);
-    setCallingId(personId);
-    startTransition(async () => {
-      const result = await startCall(personId).catch(() => ({
-        ok: false as const,
-        error: "Could not start the call. Try again.",
-      }));
-      if (result.ok) router.push(`/practice/call/${result.roomId}`);
-      else {
-        setCallError(result.error);
-        setCallingId(null);
-      }
-    });
-  }
-
   // NOTE: a filter change remounts this component (the parent keys it on
   // the active filters), so paging state resets without syncing props to
   // state in an effect.
@@ -111,8 +95,24 @@ export function PeopleDirectory({
     });
   }
 
-  // Online first, then most recently seen. Presence is client-only knowledge,
-  // so this ordering cannot happen on the server.
+  function callPerson(personId: string) {
+    setCallError(null);
+    setCallingId(personId);
+    startTransition(async () => {
+      const result = await startCall(personId).catch(() => ({
+        ok: false as const,
+        error: "Could not start the call. Try again.",
+      }));
+      if (result.ok) router.push(`/practice/call/${result.roomId}`);
+      else {
+        setCallError(result.error);
+        setCallingId(null);
+      }
+    });
+  }
+
+  // Online first, then most recently seen. Presence is client-only
+  // knowledge, so this ordering cannot happen on the server.
   const sorted = useMemo(() => {
     return [...people].sort((a, b) => {
       const aOnline = online.has(a.id) ? 1 : 0;
@@ -127,68 +127,96 @@ export function PeopleDirectory({
   const filtersActive = Boolean(search || level);
 
   return (
-    <main className="mx-auto max-w-2xl space-y-4 p-4 md:p-8">
-      <div>
-        <h1 className="text-2xl font-bold">People</h1>
-        <p className="text-sm text-muted-foreground">
-          Find someone to practise with. {total} {total === 1 ? "learner" : "learners"} here.
+    <main className="mx-auto w-full max-w-2xl space-y-4 p-4 md:p-8">
+      <header>
+        <h1 className="text-2xl">People</h1>
+        <p className="text-sm font-semibold text-muted">
+          {total} {total === 1 ? "learner" : "learners"} to practise with
         </p>
-      </div>
+      </header>
 
-      <Input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search by name"
-        aria-label="Search people by name"
-        className="h-11"
-      />
+      {/* Compact filter row: search plus a scrollable level strip. */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+            aria-hidden
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name"
+            aria-label="Search people by name"
+            className="min-h-12 w-full rounded-2xl border-2 border-line bg-surface pl-9 pr-3 text-base font-semibold placeholder:font-normal placeholder:text-muted"
+          />
+        </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setLevel("")}
-          className={`min-h-9 rounded-full border px-4 text-sm ${
-            !level ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent"
-          }`}
-        >
-          All
-        </button>
-        {LEVELS.map((l) => (
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
           <button
-            key={l}
             type="button"
-            onClick={() => setLevel(l)}
-            className={`min-h-9 rounded-full border px-4 font-mono text-sm ${
-              level === l ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent"
+            onClick={() => setLevel("")}
+            aria-pressed={!level}
+            className={`min-h-11 shrink-0 rounded-full border-2 px-4 text-sm font-bold ${
+              !level
+                ? "border-primary bg-primary text-on-primary"
+                : "border-line bg-surface text-muted"
             }`}
           >
-            {l}
+            All
           </button>
-        ))}
+          {LEVELS.map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setLevel(l)}
+              aria-pressed={level === l}
+              className={`min-h-11 w-12 shrink-0 rounded-full border-2 text-sm font-extrabold ${
+                level === l
+                  ? "border-primary bg-primary text-on-primary"
+                  : "border-line bg-surface text-muted"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {callError && (
+        <p className="rounded-2xl border-2 border-danger bg-surface p-3 text-center text-sm font-semibold text-danger">
+          {callError}
+        </p>
+      )}
+
       {sorted.length === 0 ? (
-        <div className="space-y-3 rounded-xl border border-dashed p-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            {filtersActive
-              ? "Nobody matches those filters yet. SpeakUp is still small, so try a wider search."
-              : "No other learners have joined yet. Check back soon, or practise with the AI partner in the meantime."}
-          </p>
-          {filtersActive && (
-            <Button variant="outline" className="h-11" onClick={() => router.replace("/people")}>
-              Clear filters
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          icon={filtersActive ? SearchX : UserRound}
+          title={filtersActive ? "Nobody matches those filters" : "No other learners yet"}
+          description={
+            filtersActive
+              ? "SpeakUp is still small, so try a wider search."
+              : "Check back soon — new people join every week."
+          }
+          action={
+            filtersActive ? (
+              <Button variant="secondary" onClick={() => router.replace("/people")}>
+                Clear filters
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <ul className="space-y-2">
           {sorted.map((person) => {
             const isOnline = online.has(person.id);
             return (
-              <li key={person.id} className="relative">
+              <li
+                key={person.id}
+                className="relative rounded-2xl border-2 border-line bg-surface transition-colors hover:bg-surface-raised"
+              >
                 <Link
                   href={`/people/${person.id}`}
-                  className="flex min-h-16 items-center gap-3 rounded-xl border p-3 pr-16 transition-colors hover:bg-accent"
+                  className="flex min-h-20 items-center gap-3 p-3 pr-20"
                 >
                   <div className="relative shrink-0">
                     <Avatar
@@ -200,51 +228,48 @@ export function PeopleDirectory({
                       size={48}
                     />
                     {isOnline && (
-                      <span
-                        className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full border-2 border-background bg-green-500"
-                        aria-label="Online now"
-                      />
+                      <span className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full border-2 border-surface bg-success" />
                     )}
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-medium">{person.name}</span>
-                      {person.cefrLevel && <LevelBadge level={person.cefrLevel} />}
+                    <div className="flex flex-wrap items-center gap-x-2">
+                      <span className="truncate font-extrabold">{person.name}</span>
+                      {person.cefrLevel && <Badge level={person.cefrLevel} size="sm" />}
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    {/* Text label, never colour alone. */}
+                    <p className="text-xs font-semibold">
                       {isOnline ? (
-                        <span className="text-green-600 dark:text-green-400">Online now</span>
+                        <span className="text-success">Online now</span>
                       ) : (
-                        lastSeenLabel(person.lastSeenAt ? new Date(person.lastSeenAt) : null)
+                        <span className="text-muted">
+                          {lastSeenLabel(person.lastSeenAt ? new Date(person.lastSeenAt) : null)}
+                        </span>
                       )}
                     </p>
-                    {person.bio && (
-                      <p className="truncate text-sm text-muted-foreground">{person.bio}</p>
-                    )}
+                    {person.bio && <p className="truncate text-sm text-muted">{person.bio}</p>}
                     {person.interests.length > 0 && (
                       <div className="flex flex-wrap gap-1 pt-1">
                         {person.interests.slice(0, 3).map((interest) => (
-                          <span
-                            key={interest}
-                            className="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground"
-                          >
-                            {interestLabel(interest)}
-                          </span>
+                          <Chip key={interest} label={interestLabel(interest)} />
                         ))}
                       </div>
                     )}
                   </div>
                 </Link>
+
                 <button
                   type="button"
                   onClick={() => callPerson(person.id)}
                   disabled={!isOnline || pending}
                   title={isOnline ? `Call ${person.name}` : `${person.name} is offline`}
                   aria-label={isOnline ? `Call ${person.name}` : `${person.name} is offline`}
-                  className="absolute right-3 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border bg-background text-lg transition-colors hover:bg-accent disabled:opacity-30"
+                  className="btn-3d absolute right-3 top-1/2 flex size-12 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-on-primary [--btn-edge:var(--primary-dark)] active:btn-3d-press disabled:bg-surface-raised disabled:text-muted disabled:shadow-none"
                 >
-                  {callingId === person.id ? "…" : "📞"}
+                  <Phone
+                    className={`size-5 ${callingId === person.id ? "animate-pulse" : ""}`}
+                    aria-hidden
+                  />
                 </button>
               </li>
             );
@@ -252,15 +277,9 @@ export function PeopleDirectory({
         </ul>
       )}
 
-      {callError && (
-        <p className="rounded-lg border border-destructive/50 p-3 text-center text-sm text-destructive">
-          {callError}
-        </p>
-      )}
-
       {hasMore && (
-        <Button variant="outline" className="h-11 w-full" onClick={loadMore} disabled={pending}>
-          {pending ? "Loading…" : "Load more"}
+        <Button variant="secondary" fullWidth loading={pending} onClick={loadMore}>
+          Load more
         </Button>
       )}
     </main>

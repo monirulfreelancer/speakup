@@ -2,15 +2,18 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Phone } from "lucide-react";
 import { blockUser } from "@/server/actions/people";
 import { startCall } from "@/server/actions/call";
 import { usePresence } from "@/lib/realtime/use-presence";
 import { Button } from "@/components/ui/button";
+import { Sheet } from "@/components/ui/sheet";
 
 /*
- * Call and Block. Calling is disabled while the person is offline — ringing
- * someone who cannot hear it just wastes 45 seconds — and the reason is
- * shown as text, not only as a tooltip.
+ * Call is the clear primary action; Block is deliberately quiet — it is
+ * rare, permanent, and should never be the thing a thumb finds first.
+ * Calling is disabled while the person is offline, with the reason as
+ * visible text rather than only a tooltip.
  */
 
 export function PersonActions({ userId, name }: { userId: string; name: string }) {
@@ -21,7 +24,6 @@ export function PersonActions({ userId, name }: { userId: string; name: string }
   const [pending, startTransition] = useTransition();
 
   const isOnline = online.has(userId);
-  const callDisabled = pending || !isOnline;
   const reason = !ready
     ? "Checking if they are online…"
     : isOnline
@@ -53,41 +55,48 @@ export function PersonActions({ userId, name }: { userId: string; name: string }
   }
 
   return (
-    <section className="space-y-3">
-      <div>
+    <section className="space-y-4">
+      <div className="space-y-2">
         <Button
-          className="h-12 w-full text-base"
+          size="lg"
+          fullWidth
+          loading={pending && !confirming}
           onClick={call}
-          disabled={callDisabled}
+          disabled={!isOnline}
           title={reason ?? `Call ${name}`}
         >
-          {pending ? "Calling…" : `📞 Call ${name}`}
+          <Phone className="size-5" aria-hidden />
+          Call {name}
         </Button>
-        {reason && <p className="pt-1 text-center text-xs text-muted-foreground">{reason}</p>}
+        {reason && <p className="text-center text-xs font-semibold text-muted">{reason}</p>}
       </div>
 
-      {confirming ? (
-        <div className="space-y-3 rounded-xl border border-destructive/50 p-4">
-          <p className="text-sm">
-            Block {name}? You will not see each other in the directory again, and neither of you
-            can call the other.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" className="h-11" onClick={() => setConfirming(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" className="h-11" onClick={confirmBlock} disabled={pending}>
-              {pending ? "Blocking…" : "Yes, block"}
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button variant="outline" className="h-11 w-full" onClick={() => setConfirming(true)}>
-          Block {name}
-        </Button>
-      )}
+      {error && <p className="text-center text-sm font-semibold text-danger">{error}</p>}
 
-      {error && <p className="text-center text-sm text-destructive">{error}</p>}
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="min-h-11 px-4 text-sm font-bold text-muted underline underline-offset-4 hover:text-danger"
+        >
+          Block {name}
+        </button>
+      </div>
+
+      <Sheet open={confirming} onClose={() => setConfirming(false)} title={`Block ${name}?`}>
+        <p className="text-sm text-muted">
+          You will not see each other in the directory again, and neither of you can call the
+          other. This cannot be undone from here.
+        </p>
+        <div className="grid grid-cols-2 gap-2 pt-4">
+          <Button variant="secondary" onClick={() => setConfirming(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" loading={pending} onClick={confirmBlock}>
+            Block
+          </Button>
+        </div>
+      </Sheet>
     </section>
   );
 }

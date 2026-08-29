@@ -34,7 +34,7 @@ export default async function CallPage({
       <main className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-8 text-center">
         <span className="text-4xl" aria-hidden>🔍</span>
         <h1 className="text-xl font-bold">That call is not available</h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
+        <p className="max-w-sm text-sm text-muted">
           It has already ended, or it belongs to someone else. Find a new partner to start another
           conversation.
         </p>

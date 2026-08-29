@@ -1,130 +1,195 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/*
+ * SpeakUp design tokens.
+ *
+ * THE ONLY PLACE COLOURS ARE DEFINED. Every component reads these through
+ * Tailwind utilities (bg-surface, text-muted, border-line…). A hex value
+ * anywhere else is a bug: it will be wrong in one of the two themes.
+ *
+ * Bright and game-like on purpose — this is a practice app people should
+ * want to open, not a form they have to fill in.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+
   --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-primary-dark: var(--primary-dark);
+  --color-on-primary: var(--on-primary);
+
+  --color-success: var(--success);
+  --color-success-dark: var(--success-dark);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-danger-dark: var(--danger-dark);
+
+  --color-level-a: var(--level-a);
+  --color-level-b: var(--level-b);
+  --color-level-c: var(--level-c);
+  --color-scrim: var(--scrim);
+  --color-level-a-soft: var(--level-a-soft);
+  --color-level-b-soft: var(--level-b-soft);
+  --color-level-c-soft: var(--level-c-soft);
+
+  /* shadcn primitives still used by a few inputs, mapped onto our tokens. */
+  --color-foreground: var(--text);
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--primary);
+  --color-accent: var(--surface-raised);
+  --color-accent-foreground: var(--text);
+  --color-muted-foreground: var(--text-muted);
+  --color-destructive: var(--danger);
+  --color-card: var(--surface);
+  --color-popover: var(--surface);
+  --color-primary-foreground: var(--on-primary);
+  --color-secondary: var(--surface-raised);
+  --color-secondary-foreground: var(--text);
+
+  --font-sans: var(--font-nunito), ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 28px;
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Light: warm white, never pure #fff, so cards can still sit above it. */
+  --background: #f7f9fc;
+  --surface: #ffffff;
+  --surface-raised: #eef2f8;
+  --line: #dde3ec;
+  --text: #14202e;
+  --text-muted: #5a6b80;
+
+  /* Duolingo-ish grass green. primary-dark is the pressed 3D edge. */
+  --primary: #2fb457;
+  --primary-dark: #219544;
+  --on-primary: #ffffff;
+
+  --success: #2fb457;
+  --success-dark: #219544;
+  --warning: #e8a33d;
+  --danger: #e14b4b;
+  --danger-dark: #bd3838;
+
+  /* CEFR bands: A beginner green, B intermediate blue, C advanced purple. */
+  --level-a: #1f9d4d;
+  --level-b: #2a7fd4;
+  --level-c: #7c4dd6;
+  --scrim: rgb(11 17 25 / 0.6);
+  --level-a-soft: #e3f6e9;
+  --level-b-soft: #e2eefc;
+  --level-c-soft: #eee6fb;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Dark: deep blue-grey rather than black, so the greens stay readable. */
+  --background: #0f1620;
+  --surface: #18212e;
+  --surface-raised: #222d3d;
+  --line: #2d3a4d;
+  --text: #eef3f9;
+  --text-muted: #9dadc0;
+
+  --primary: #3ecb68;
+  --primary-dark: #2a9c4c;
+  --on-primary: #08130b;
+
+  --success: #3ecb68;
+  --success-dark: #2a9c4c;
+  --warning: #f0b459;
+  --danger: #f26a6a;
+  --danger-dark: #c94f4f;
+
+  --level-a: #4ed37c;
+  --level-b: #64aef5;
+  --level-c: #b18cf0;
+  --scrim: rgb(4 8 13 / 0.7);
+  --level-a-soft: #16321f;
+  --level-b-soft: #12263a;
+  --level-c-soft: #241c39;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--line);
   }
+
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--background);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
   }
-  html {
-    @apply font-sans;
+
+  h1,
+  h2,
+  h3 {
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  /* Visible focus on everything interactive, in both themes. */
+  :focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+}
+
+/*
+ * The chunky button edge: a solid block of primary-dark beneath the face
+ * that collapses on :active, so the button physically presses down.
+ */
+@utility btn-3d {
+  box-shadow: 0 4px 0 0 var(--btn-edge, var(--primary-dark));
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    filter 150ms ease;
+}
+
+@utility btn-3d-press {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 0 var(--btn-edge, var(--primary-dark));
+}
+
+/* Soft pulse used by the ringing overlay and the live audio meters. */
+@keyframes speakup-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.15;
+  }
+}
+
+@utility animate-ring-pulse {
+  animation: speakup-pulse 1.6s ease-in-out infinite;
+}
+
+/* Motion is decoration: honour the system setting everywhere at once. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

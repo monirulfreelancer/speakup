@@ -52,7 +52,7 @@ export function InstallPrompt({ eligible }: { eligible: boolean }) {
           <span className="text-2xl" aria-hidden>📲</span>
           <div className="flex-1">
             <p className="font-semibold">Add SpeakUp to your home screen</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted">
               {ios
                 ? "Tap the Share button, then “Add to Home Screen” — practice opens with one tap."
                 : "Install the app for one-tap practice — no browser bar, full screen."}
@@ -72,7 +72,7 @@ export function InstallPrompt({ eligible }: { eligible: boolean }) {
               Install
             </Button>
           )}
-          <Button variant="outline" className="h-11 flex-1" onClick={dismiss}>
+          <Button variant="secondary" className="h-11 flex-1" onClick={dismiss}>
             {ios ? "Got it" : "Not now"}
           </Button>
         </div>

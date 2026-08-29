@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { InstallHint } from "@/components/pwa/install-hint";
+import { Bot, Globe, Mic, Users } from "lucide-react";
 
 /*
  * Public landing page. Server-rendered so it indexes: the copy, headings and
@@ -97,9 +98,14 @@ export default async function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-dvh flex-col">
         <header className="mx-auto flex w-full max-w-3xl items-center justify-between p-4">
-          <span className="text-lg font-bold">SpeakUp</span>
+          <span className="flex items-center gap-2 text-lg font-extrabold">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-on-primary">
+              <Mic className="size-5" aria-hidden />
+            </span>
+            SpeakUp
+          </span>
           <Link href="/login" className="text-sm font-medium underline underline-offset-4">
             Log in
           </Link>
@@ -108,67 +114,67 @@ export default async function LandingPage() {
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-12">
           {/* Hero */}
           <section className="space-y-5 py-10 text-center sm:py-16">
-            <span className="text-5xl" aria-hidden>
-              🎙️
+            <span className="mx-auto flex size-20 items-center justify-center rounded-3xl bg-primary text-on-primary">
+              <Mic className="size-10" aria-hidden />
             </span>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">
+            <h1 className="text-3xl sm:text-5xl">
               Get comfortable speaking English
             </h1>
-            <p className="mx-auto max-w-xl text-lg text-muted-foreground">
+            <p className="mx-auto max-w-xl text-lg text-muted">
               Practise out loud with an AI partner whenever you have ten minutes, or talk with a
               real learner at your level. No classroom, no schedule, no one judging you.
             </p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row">
               <Link
                 href="/signup"
-                className="flex h-12 items-center justify-center rounded-lg bg-primary px-6 font-medium text-primary-foreground hover:opacity-90"
+                className="btn-3d flex min-h-14 items-center justify-center rounded-2xl bg-primary px-8 text-lg font-bold text-on-primary [--btn-edge:var(--primary-dark)] active:btn-3d-press"
               >
                 Get started
               </Link>
               <Link
                 href="/login"
-                className="flex h-12 items-center justify-center rounded-lg border px-6 font-medium hover:bg-accent"
+                className="flex min-h-14 items-center justify-center rounded-2xl border-2 border-line bg-surface px-8 text-lg font-bold hover:bg-surface-raised"
               >
                 Log in
               </Link>
             </div>
-            <p className="text-sm text-muted-foreground">Free to start. Works in your browser.</p>
+            <p className="text-sm text-muted">Free to start. Works in your browser.</p>
           </section>
 
           {/* Features */}
           <section className="space-y-4 py-8" aria-labelledby="features-heading">
-            <h2 id="features-heading" className="text-center text-2xl font-bold">
+            <h2 id="features-heading" className="text-center text-2xl">
               Why it works
             </h2>
             <div className="grid gap-4 sm:grid-cols-3">
-              <article className="space-y-2 rounded-2xl border p-5">
-                <span className="text-2xl" aria-hidden>
-                  🤖
+              <article className="space-y-2 rounded-2xl border-2 border-line bg-surface p-5">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-surface-raised text-primary">
+                  <Bot className="size-6" aria-hidden />
                 </span>
-                <h3 className="font-bold">An AI partner, any time</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-extrabold">An AI partner, any time</h3>
+                <p className="text-sm text-muted">
                   Practise at midnight or on your bus ride. The AI keeps its sentences short at
                   beginner levels and stretches you as you improve, and it always asks a question
                   back so the conversation keeps going.
                 </p>
               </article>
-              <article className="space-y-2 rounded-2xl border p-5">
-                <span className="text-2xl" aria-hidden>
-                  🧑‍🤝‍🧑
+              <article className="space-y-2 rounded-2xl border-2 border-line bg-surface p-5">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-surface-raised text-primary">
+                  <Users className="size-6" aria-hidden />
                 </span>
-                <h3 className="font-bold">Real people at your level</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-extrabold">Real people at your level</h3>
+                <p className="text-sm text-muted">
                   When you want the real thing, we match you with another learner at your level or
                   one step away. Everyone there is practising too, so nobody minds the pauses and
                   mistakes.
                 </p>
               </article>
-              <article className="space-y-2 rounded-2xl border p-5">
-                <span className="text-2xl" aria-hidden>
-                  🇬🇧
+              <article className="space-y-2 rounded-2xl border-2 border-line bg-surface p-5">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-surface-raised text-primary">
+                  <Globe className="size-6" aria-hidden />
                 </span>
-                <h3 className="font-bold">English only, gently</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-extrabold">English only, gently</h3>
+                <p className="text-sm text-muted">
                   It is easy to slip back into your own language and lose the practice. SpeakUp
                   notices and nudges you back, softly at lower levels and firmly at higher ones.
                   You choose which.
@@ -179,28 +185,28 @@ export default async function LandingPage() {
 
           {/* How it works */}
           <section className="space-y-4 py-8" aria-labelledby="how-heading">
-            <h2 id="how-heading" className="text-center text-2xl font-bold">
+            <h2 id="how-heading" className="text-center text-2xl">
               How it works
             </h2>
             <ol className="grid gap-3 sm:grid-cols-3">
-              <li className="rounded-2xl bg-accent p-5">
-                <p className="text-sm font-bold text-muted-foreground">Step 1</p>
+              <li className="rounded-2xl border-2 border-line bg-surface p-5">
+                <p className="text-sm font-bold text-muted">Step 1</p>
                 <p className="font-medium">Pick your level</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted">
                   Beginner to advanced. Not sure? Start at B1 and change it later.
                 </p>
               </li>
-              <li className="rounded-2xl bg-accent p-5">
-                <p className="text-sm font-bold text-muted-foreground">Step 2</p>
+              <li className="rounded-2xl border-2 border-line bg-surface p-5">
+                <p className="text-sm font-bold text-muted">Step 2</p>
                 <p className="font-medium">Choose a topic</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted">
                   Travel, food, job interviews, or just free talk about your day.
                 </p>
               </li>
-              <li className="rounded-2xl bg-accent p-5">
-                <p className="text-sm font-bold text-muted-foreground">Step 3</p>
+              <li className="rounded-2xl border-2 border-line bg-surface p-5">
+                <p className="text-sm font-bold text-muted">Step 3</p>
                 <p className="font-medium">Start talking</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted">
                   Tap the microphone and speak. That is the whole thing.
                 </p>
               </li>
@@ -212,21 +218,21 @@ export default async function LandingPage() {
 
           {/* FAQ */}
           <section className="space-y-4 py-8" aria-labelledby="faq-heading">
-            <h2 id="faq-heading" className="text-center text-2xl font-bold">
+            <h2 id="faq-heading" className="text-center text-2xl">
               Common questions
             </h2>
             <dl className="space-y-3">
               {FAQ.map((item) => (
-                <div key={item.q} className="rounded-2xl border p-5">
-                  <dt className="font-bold">{item.q}</dt>
-                  <dd className="pt-1 text-sm text-muted-foreground">{item.a}</dd>
+                <div key={item.q} className="rounded-2xl border-2 border-line bg-surface p-5">
+                  <dt className="font-extrabold">{item.q}</dt>
+                  <dd className="pt-1 text-sm text-muted">{item.a}</dd>
                 </div>
               ))}
             </dl>
           </section>
 
-          <section className="rounded-2xl bg-primary p-8 text-center text-primary-foreground">
-            <h2 className="text-2xl font-bold">Ready to say something?</h2>
+          <section className="rounded-3xl bg-primary p-8 text-center text-on-primary">
+            <h2 className="text-2xl">Ready to say something?</h2>
             <p className="pt-2 opacity-80">Your first conversation takes about five minutes.</p>
             <Link
               href="/signup"
@@ -238,7 +244,7 @@ export default async function LandingPage() {
         </main>
 
         <footer className="border-t">
-          <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 p-4 text-sm text-muted-foreground">
+          <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 p-4 text-sm text-muted">
             <span>© {new Date().getFullYear()} SpeakUp</span>
             <nav className="flex gap-4">
               <Link href="/download" className="underline underline-offset-4">

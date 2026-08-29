@@ -21,10 +21,10 @@ export function TranscriptBubble({
       <div
         className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${
           interim
-            ? "border border-dashed text-muted-foreground italic"
+            ? "border border-dashed text-muted italic"
             : mine
-              ? "bg-primary text-primary-foreground"
-              : "bg-accent"
+              ? "bg-primary text-on-primary"
+              : "bg-surface-raised"
         }`}
       >
         {text}

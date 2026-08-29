@@ -3,21 +3,26 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { Home, Users, Settings as SettingsIcon, Mic } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { IncomingCallProvider } from "@/components/call/incoming-call-provider";
+import { ToastProvider } from "@/components/ui/toast";
 
 /*
- * App shell: bottom tab bar on mobile, left sidebar on desktop. Client
- * component only for the active-tab highlight (usePathname); pages stay
- * server components and render into {children}.
+ * Mobile-first shell: a bottom tab bar on phones, a sidebar from md up.
+ * Same routes and labels in both — only the layout differs.
+ *
+ * The tab bar reserves env(safe-area-inset-bottom) so it clears the home
+ * indicator on modern iPhones instead of sitting under it.
  */
 
-type NavItem = { href: string; label: string; icon: string };
+type NavItem = { href: string; label: string; icon: LucideIcon };
 
-const HOME: NavItem = { href: "/dashboard", label: "Home", icon: "🏠" };
-const AI_PRACTICE: NavItem = { href: "/practice/ai", label: "Practice", icon: "🎙️" };
+const HOME: NavItem = { href: "/dashboard", label: "Home", icon: Home };
+const AI_PRACTICE: NavItem = { href: "/practice/ai", label: "Practice", icon: Mic };
 const REST: NavItem[] = [
-  { href: "/people", label: "People", icon: "🧑‍🤝‍🧑" },
-  { href: "/settings", label: "Settings", icon: "⚙️" },
+  { href: "/people", label: "People", icon: Users },
+  { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 export function AppShell({
@@ -29,63 +34,84 @@ export function AppShell({
   aiModeEnabled: boolean;
 }) {
   const pathname = usePathname();
-  const NAV = aiModeEnabled ? [HOME, AI_PRACTICE, ...REST] : [HOME, ...REST];
+  const nav = aiModeEnabled ? [HOME, AI_PRACTICE, ...REST] : [HOME, ...REST];
+
+  // The call screen is full-bleed: no chrome competing with the call.
+  const immersive = pathname.startsWith("/practice/call/");
+
+  const isActive = (href: string) =>
+    href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 
   return (
-    <div className="min-h-screen md:flex">
-      {/* Alive on every signed-in page, so a ring reaches the user anywhere. */}
-      <IncomingCallProvider />
-      {/* Desktop sidebar */}
-      <aside className="hidden w-56 shrink-0 border-r md:flex md:flex-col">
-        <div className="p-4">
-          <Link href="/dashboard" className="text-xl font-bold">
-            SpeakUp
-          </Link>
-        </div>
-        <nav className="flex flex-col gap-1 p-2">
-          {NAV.map((item) => {
-            const active = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium ${
-                  active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50"
-                }`}
-              >
-                <span aria-hidden>{item.icon}</span>
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
+    <ToastProvider>
+      <div className="min-h-dvh md:flex">
+        <IncomingCallProvider />
 
-      {/* pb clears the mobile tab bar */}
-      <div className="flex-1 pb-20 md:pb-0">{children}</div>
+        {!immersive && (
+          <aside className="hidden w-60 shrink-0 border-r-2 border-line bg-surface md:flex md:flex-col">
+            <Link href="/dashboard" className="flex items-center gap-2 p-5 text-xl font-extrabold">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-on-primary">
+                <Mic className="size-5" aria-hidden />
+              </span>
+              SpeakUp
+            </Link>
+            <nav className="flex flex-col gap-1 p-3">
+              {nav.map((item) => {
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`flex min-h-12 items-center gap-3 rounded-2xl px-4 font-bold transition-colors ${
+                      active
+                        ? "bg-primary text-on-primary"
+                        : "text-muted hover:bg-surface-raised hover:text-text"
+                    }`}
+                  >
+                    <item.icon className="size-5" aria-hidden />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </aside>
+        )}
 
-      {/* Mobile bottom tab bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background md:hidden">
-        <div className={`grid ${NAV.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
-          {NAV.map((item) => {
-            const active = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex min-h-16 flex-col items-center justify-center gap-0.5 text-xs ${
-                  active ? "font-semibold text-foreground" : "text-muted-foreground"
-                }`}
-              >
-                <span className="text-xl" aria-hidden>
-                  {item.icon}
-                </span>
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-    </div>
+        <div className={`flex-1 ${immersive ? "" : "pb-24 md:pb-0"}`}>{children}</div>
+
+        {!immersive && (
+          <nav
+            aria-label="Main"
+            className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+          >
+            <div className={`grid ${nav.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
+              {nav.map((item) => {
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`flex min-h-16 flex-col items-center justify-center gap-1 text-xs font-bold transition-colors ${
+                      active ? "text-primary" : "text-muted"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-8 w-12 items-center justify-center rounded-full transition-colors ${
+                        active ? "bg-level-a-soft" : ""
+                      }`}
+                    >
+                      <item.icon className="size-5" aria-hidden />
+                    </span>
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+        )}
+      </div>
+    </ToastProvider>
   );
 }

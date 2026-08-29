@@ -17,14 +17,14 @@ export function SignupForm() {
         <Label htmlFor="name">Name</Label>
         <Input id="name" name="name" autoComplete="name" required />
         {state.fieldErrors?.name && (
-          <p className="text-sm text-destructive">{state.fieldErrors.name}</p>
+          <p className="text-sm text-danger">{state.fieldErrors.name}</p>
         )}
       </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input id="email" name="email" type="email" autoComplete="email" required />
         {state.fieldErrors?.email && (
-          <p className="text-sm text-destructive">{state.fieldErrors.email}</p>
+          <p className="text-sm text-danger">{state.fieldErrors.email}</p>
         )}
       </div>
       <div className="space-y-2">
@@ -37,12 +37,12 @@ export function SignupForm() {
           minLength={8}
           required
         />
-        <p className="text-xs text-muted-foreground">At least 8 characters.</p>
+        <p className="text-xs text-muted">At least 8 characters.</p>
         {state.fieldErrors?.password && (
-          <p className="text-sm text-destructive">{state.fieldErrors.password}</p>
+          <p className="text-sm text-danger">{state.fieldErrors.password}</p>
         )}
       </div>
-      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+      {state.error && <p className="text-sm text-danger">{state.error}</p>}
       <Button type="submit" className="h-11 w-full" disabled={pending}>
         {pending ? "Creating account…" : "Sign up"}
       </Button>

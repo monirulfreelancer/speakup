@@ -39,7 +39,7 @@ export function SpeechTestSurface() {
     <main className="mx-auto max-w-2xl space-y-6 p-4 md:p-8">
       <div>
         <h1 className="text-xl font-bold">Speech test surface</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted">
           Dev-only for Phase 3 — the real conversation arrives in Phase 4.
         </p>
       </div>
@@ -106,23 +106,23 @@ function SpeechPanel({ stream }: { stream: MediaStream }) {
       <MicButton state={micState} stream={stream} onClick={toggleMic} />
 
       {error && (
-        <p className="rounded-lg border border-destructive/50 p-3 text-sm text-destructive">
+        <p className="rounded-lg border border-danger p-3 text-sm text-danger">
           {error.code}: {error.message}
         </p>
       )}
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">Transcript</h2>
+        <h2 className="text-sm font-semibold text-muted">Transcript</h2>
         <div className="min-h-24 space-y-2 rounded-xl border p-3">
           {finals.length === 0 && !interim && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted">
               Tap the mic and say something — final lines appear with their confidence score.
             </p>
           )}
           {finals.map((line, i) => (
             <div key={i} className="space-y-1">
               <TranscriptBubble text={line.text} />
-              <p className="text-right text-xs text-muted-foreground">
+              <p className="text-right text-xs text-muted">
                 confidence {line.confidence.toFixed(2)}
               </p>
             </div>
@@ -132,7 +132,7 @@ function SpeechPanel({ stream }: { stream: MediaStream }) {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">Text to speech</h2>
+        <h2 className="text-sm font-semibold text-muted">Text to speech</h2>
         <div className="flex gap-2">
           <Input value={ttsText} onChange={(e) => setTtsText(e.target.value)} />
           <Button type="button" className="h-11" onClick={speak}>

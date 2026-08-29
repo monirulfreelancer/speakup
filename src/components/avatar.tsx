@@ -14,6 +14,19 @@ export type AvatarUser = {
   avatarUpdatedAt: Date | string | null;
 };
 
+/* Deterministic tint per user, so the letter circle is not a grey blob. */
+const TINTS = [
+  "bg-level-a-soft text-level-a",
+  "bg-level-b-soft text-level-b",
+  "bg-level-c-soft text-level-c",
+];
+
+function tintFor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash + id.charCodeAt(i)) % 997;
+  return TINTS[hash % TINTS.length];
+}
+
 export function Avatar({
   user,
   size = 48,
@@ -33,7 +46,7 @@ export function Avatar({
     return (
       <div
         style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
-        className={`flex shrink-0 items-center justify-center rounded-full bg-accent font-bold ${className}`}
+        className={`flex shrink-0 items-center justify-center rounded-full font-extrabold ${tintFor(user.id)} ${className}`}
         aria-hidden
       >
         {letter}
@@ -55,7 +68,7 @@ export function Avatar({
       loading={priority ? "eager" : "lazy"}
       decoding="async"
       style={{ width: size, height: size }}
-      className={`shrink-0 rounded-full bg-accent object-cover ${className}`}
+      className={`shrink-0 rounded-full bg-surface-raised object-cover ${className}`}
     />
   );
 }

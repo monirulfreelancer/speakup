@@ -19,7 +19,7 @@ export default function DownloadPage() {
           🎙️
         </span>
         <h1 className="text-3xl font-bold">Get the SpeakUp app</h1>
-        <p className="mx-auto max-w-md text-muted-foreground">
+        <p className="mx-auto max-w-md text-muted">
           The same SpeakUp you use in the browser, as an app on your phone. One tap to open, full
           screen, no address bar.
         </p>
@@ -30,14 +30,14 @@ export default function DownloadPage() {
         <a
           href="/downloads/speakup.apk"
           download
-          className="flex h-12 items-center justify-center rounded-lg bg-primary px-6 font-medium text-primary-foreground hover:opacity-90"
+          className="flex h-12 items-center justify-center rounded-lg bg-primary px-6 font-medium text-on-primary hover:opacity-90"
         >
           Install for Android (APK)
         </a>
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-xs text-muted">
           Version {APP_VERSION} · direct download, not from the Play Store
         </p>
-        <ol className="list-inside list-decimal space-y-2 text-sm text-muted-foreground">
+        <ol className="list-inside list-decimal space-y-2 text-sm text-muted">
           <li>Tap the button above. Your phone downloads a file called speakup.apk.</li>
           <li>
             Open the downloaded file. If your phone says installs from this source are not
@@ -50,14 +50,14 @@ export default function DownloadPage() {
 
       <section className="space-y-3 rounded-2xl border p-6">
         <h2 className="text-xl font-bold">iPhone and iPad</h2>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted">
           There is no APK for iPhone. Instead, open SpeakUp in Safari and add it to your home
           screen. It works the same way: tap the Share button, scroll down, tap &ldquo;Add to Home
           Screen&rdquo;, then &ldquo;Add&rdquo;. The same steps are in the app under Settings.
         </p>
       </section>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-sm text-muted">
         Prefer the browser? Nothing is lost.{" "}
         <Link href="/" className="underline underline-offset-4">
           SpeakUp works fully on the web
