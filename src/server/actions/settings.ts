@@ -19,21 +19,6 @@ async function requireUserId(): Promise<string | null> {
   return session?.user?.id ?? null;
 }
 
-const cefrSchema = z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]);
-
-export async function updateCefrLevel(level: string): Promise<SettingsResult> {
-  const userId = await requireUserId();
-  if (!userId) return { ok: false, error: "Not signed in" };
-
-  const parsed = cefrSchema.safeParse(level);
-  if (!parsed.success) return { ok: false, error: "Unknown level" };
-
-  await db.user.update({ where: { id: userId }, data: { cefrLevel: parsed.data } });
-  revalidatePath("/dashboard");
-  revalidatePath("/settings");
-  return { ok: true };
-}
-
 const enforcementSchema = z.enum(["GENTLE", "STRICT", "AUTO"]);
 
 export async function updateEnforcementMode(mode: string): Promise<SettingsResult> {
@@ -111,19 +96,35 @@ const profileSchema = z.object({
   interests: z
     .array(z.enum(INTEREST_VALUES as [string, ...string[]]))
     .max(MAX_INTERESTS, `Pick at most ${MAX_INTERESTS} interests`),
+  cefrLevel: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
 });
+
+/** Field-level errors so the form can show each message in place. */
+export type ProfileSaveResult =
+  | { ok: true }
+  | { ok: false; error: string; field?: "name" | "bio" | "interests" | "cefrLevel" };
 
 export async function updateProfile(input: {
   name: string;
   bio: string;
   interests: string[];
-}): Promise<SettingsResult> {
+  cefrLevel: string;
+}): Promise<ProfileSaveResult> {
   const userId = await requireUserId();
   if (!userId) return { ok: false, error: "Not signed in" };
 
   const parsed = profileSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "That profile is not valid" };
+    const issue = parsed.error.issues[0];
+    const field = issue?.path[0];
+    return {
+      ok: false,
+      error: issue?.message ?? "That profile is not valid",
+      field:
+        field === "name" || field === "bio" || field === "interests" || field === "cefrLevel"
+          ? field
+          : undefined,
+    };
   }
 
   await db.user.update({
@@ -131,6 +132,7 @@ export async function updateProfile(input: {
     data: {
       name: parsed.data.name,
       bio: parsed.data.bio || null,
+      cefrLevel: parsed.data.cefrLevel,
       // Deduplicate: the UI cannot produce repeats, but a crafted request can.
       interests: [...new Set(parsed.data.interests)],
     },
@@ -138,5 +140,6 @@ export async function updateProfile(input: {
 
   revalidatePath("/settings");
   revalidatePath("/people");
+  revalidatePath("/dashboard");
   return { ok: true };
 }

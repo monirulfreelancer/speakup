@@ -104,6 +104,8 @@ export interface ServerToClientEvents {
     fromUserId: string;
     fromName: string;
     fromLevel: CefrLevel;
+    /** ISO timestamp of the caller's avatar, or null — for the overlay image. */
+    avatarUpdatedAt: string | null;
     topic: MatchedTopic;
   }) => void;
   /** To the CALLER's user room, so it lands wherever they navigated. */

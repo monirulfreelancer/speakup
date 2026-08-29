@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { LevelBadge } from "@/components/level-badge";
+import { Avatar } from "@/components/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 
@@ -24,6 +25,7 @@ export default async function DashboardPage() {
     select: {
       name: true,
       photoUrl: true,
+      avatarUpdatedAt: true,
       cefrLevel: true,
       onboardedAt: true,
       isAdult: true,
@@ -58,14 +60,11 @@ export default async function DashboardPage() {
       <InstallPrompt eligible={(stats?.sessionsCount ?? 0) >= 1} />
       {/* Header */}
       <header className="flex items-center gap-3">
-        <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-lg font-bold">
-          {user.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.photoUrl} alt="" className="size-full object-cover" />
-          ) : (
-            user.name.charAt(0).toUpperCase()
-          )}
-        </div>
+        <Avatar
+          user={{ id: session.user.id, displayName: user.name, avatarUpdatedAt: user.avatarUpdatedAt }}
+          size={48}
+          priority
+        />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-xl font-bold">{user.name}</h1>
           <p className="text-sm text-muted-foreground">Ready to practice?</p>

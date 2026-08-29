@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getSocket } from "@/lib/realtime/socket";
 import { Ringtone } from "@/lib/rtc/ringtone";
 import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/avatar";
 
 /*
  * Global incoming-call overlay.
@@ -20,8 +21,10 @@ import { Button } from "@/components/ui/button";
 
 type Ringing = {
   roomId: string;
+  fromUserId: string;
   fromName: string;
   fromLevel: string;
+  avatarUpdatedAt: string | null;
   topic: { title: string; icon: string } | null;
 };
 
@@ -48,8 +51,10 @@ export function IncomingCallProvider() {
 
     const onRing = (payload: {
       roomId: string;
+      fromUserId: string;
       fromName: string;
       fromLevel: string;
+      avatarUpdatedAt?: string | null;
       topic: { title: string; icon: string } | null;
     }) => {
       // Already ringing, or already on a call screen: auto-decline as busy.
@@ -60,8 +65,10 @@ export function IncomingCallProvider() {
       }
       setRinging({
         roomId: payload.roomId,
+        fromUserId: payload.fromUserId,
         fromName: payload.fromName,
         fromLevel: payload.fromLevel,
+        avatarUpdatedAt: payload.avatarUpdatedAt ?? null,
         topic: payload.topic,
       });
       ringtoneRef.current?.start();
@@ -116,9 +123,16 @@ export function IncomingCallProvider() {
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-4 sm:items-center">
       <div className="w-full max-w-sm space-y-5 rounded-2xl border bg-background p-6 text-center shadow-xl">
-        <div className="mx-auto flex size-20 animate-pulse items-center justify-center rounded-full bg-accent text-3xl font-bold">
-          {ringing.fromName.charAt(0).toUpperCase()}
-        </div>
+        <Avatar
+          user={{
+            id: ringing.fromUserId,
+            displayName: ringing.fromName,
+            avatarUpdatedAt: ringing.avatarUpdatedAt,
+          }}
+          size={80}
+          className="mx-auto animate-pulse"
+          priority
+        />
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">Incoming call</p>
           <p className="text-xl font-bold">{ringing.fromName}</p>

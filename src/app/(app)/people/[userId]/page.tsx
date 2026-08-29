@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { getPersonProfile } from "@/server/people";
 import { interestLabel } from "@/lib/interests";
 import { LevelBadge } from "@/components/level-badge";
+import { Avatar } from "@/components/avatar";
 import { PersonActions } from "./person-actions";
 import { PresenceDot } from "./presence-dot";
 
@@ -45,9 +46,12 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
       </Link>
 
       <section className="space-y-3 text-center">
-        <div className="mx-auto flex size-24 items-center justify-center rounded-full bg-accent text-4xl font-bold">
-          {person.name.charAt(0).toUpperCase()}
-        </div>
+        <Avatar
+          user={{ id: person.id, displayName: person.name, avatarUpdatedAt: person.avatarUpdatedAt }}
+          size={96}
+          className="mx-auto"
+          priority
+        />
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">{person.name}</h1>
           <div className="flex items-center justify-center gap-2">

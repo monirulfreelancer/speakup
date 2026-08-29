@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
-  updateCefrLevel,
   updateEnforcementMode,
   updateNotifications,
   updateTts,
@@ -19,52 +18,6 @@ import { subscribeVoices } from "@/lib/speech/voices";
  * optimistically, fires the server action, and rolls back with a small
  * error message if the action fails.
  */
-
-const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
-
-export function CefrLevelPicker({ current }: { current: string }) {
-  const [level, setLevel] = useState(current);
-  const [error, setError] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
-
-  function pick(next: string) {
-    if (next === level) return;
-    const previous = level;
-    setLevel(next);
-    setError(null);
-    startTransition(async () => {
-      const result = await updateCefrLevel(next).catch(
-        (): SettingsResult => ({ ok: false, error: "Network problem — try again" }),
-      );
-      if (!result.ok) {
-        setLevel(previous);
-        setError(result.error);
-      }
-    });
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-        {LEVELS.map((l) => (
-          <button
-            key={l}
-            type="button"
-            onClick={() => pick(l)}
-            className={`min-h-11 rounded-lg border font-mono font-bold transition-colors ${
-              level === l
-                ? "border-primary bg-primary text-primary-foreground"
-                : "hover:bg-accent"
-            }`}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-    </div>
-  );
-}
 
 const MODES = [
   { value: "GENTLE", label: "Gentle", blurb: "A friendly nudge; the conversation keeps going." },

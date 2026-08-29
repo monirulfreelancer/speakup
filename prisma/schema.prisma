@@ -83,6 +83,9 @@ model User {
   bio        String?  @db.VarChar(200)
   interests  String[] @default([])
   lastSeenAt DateTime? @map("last_seen_at")
+  // Stamped on every avatar change. Lets list queries build the image URL
+  // (and its cache-busting ?v=) without joining the bytes.
+  avatarUpdatedAt DateTime? @map("avatar_updated_at")
 
   enforcementMode EnforcementMode @default(AUTO) @map("enforcement_mode")
   role            String          @default("user")
@@ -98,6 +101,7 @@ model User {
   violations       LanguageViolation[]
   stats            UserStats?
   events           Event[]
+  avatar           Avatar?
 
   @@map("users")
 }
@@ -384,4 +388,20 @@ model PartnerRating {
 
   @@unique([matchId, raterId])
   @@map("partner_ratings")
+}
+
+/*
+ * Avatar bytes live in their own table so every User query stays light —
+ * a 30-row directory page must never drag 30 images through Postgres.
+ * Always stored as a 256x256 webp, re-encoded by the upload route.
+ */
+model Avatar {
+  userId    String   @id @map("user_id")
+  mime      String
+  data      Bytes
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("avatars")
 }

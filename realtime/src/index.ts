@@ -216,6 +216,7 @@ io.on("connection", (rawSocket) => {
       fromUserId: user.id,
       fromName: profile?.name ?? "A learner",
       fromLevel: (profile?.level ?? "B1") as CefrLevel,
+      avatarUpdatedAt: profile?.avatarUpdatedAt ?? null,
       topic:
         match.topicTitle && match.topicIcon
           ? { title: match.topicTitle, icon: match.topicIcon }

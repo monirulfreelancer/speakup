@@ -7,6 +7,7 @@ import type { IcePayload, SdpPayload } from "@/lib/realtime/events";
 import { isPolitePeer, VoiceCall, type CallStats, type ConnectionState } from "@/lib/rtc/peer";
 import { Ringtone } from "@/lib/rtc/ringtone";
 import { LevelBadge } from "@/components/level-badge";
+import { Avatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { AudioMeter } from "@/components/speech/audio-meter";
 import { PostCall } from "./post-call";
@@ -33,7 +34,7 @@ type Props = {
   selfUserId: string;
   partnerUserId: string;
   partnerName: string;
-  partnerPhotoUrl: string | null;
+  partnerAvatarUpdatedAt: string | null;
   partnerLevel: CefrLevel | null;
   topic: { title: string; icon: string } | null;
   /** "caller" created the Match; "callee" arrived here after accepting. */
@@ -431,18 +432,16 @@ export function CallScreen(props: Props) {
       <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
 
       <section className="space-y-4 pt-8 text-center">
-        <div
-          className={`mx-auto flex size-24 items-center justify-center overflow-hidden rounded-full bg-accent text-4xl font-bold ${
-            phase === "incoming" ? "animate-pulse" : ""
-          }`}
-        >
-          {props.partnerPhotoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={props.partnerPhotoUrl} alt="" className="size-full object-cover" />
-          ) : (
-            props.partnerName.charAt(0).toUpperCase()
-          )}
-        </div>
+        <Avatar
+          user={{
+            id: props.partnerUserId,
+            displayName: props.partnerName,
+            avatarUpdatedAt: props.partnerAvatarUpdatedAt,
+          }}
+          size={96}
+          className="mx-auto"
+          priority
+        />
 
         <div className="space-y-1">
           <h1 className="text-xl font-bold">{props.partnerName}</h1>

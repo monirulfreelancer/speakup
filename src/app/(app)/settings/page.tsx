@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { InstallSettingsEntry } from "@/components/pwa/install-settings-entry";
 import { ProfileForm } from "@/components/profile-form";
 import {
-  CefrLevelPicker,
   EnforcementModePicker,
   NotificationsToggle,
   TtsControls,
@@ -24,6 +23,7 @@ export default async function SettingsPage() {
       name: true,
       bio: true,
       interests: true,
+      avatarUpdatedAt: true,
       cefrLevel: true,
       enforcementMode: true,
       onboardedAt: true,
@@ -47,20 +47,13 @@ export default async function SettingsPage() {
           </p>
         </div>
         <ProfileForm
+          userId={session.user.id}
           initialName={user.name}
           initialBio={user.bio ?? ""}
           initialInterests={user.interests}
+          initialLevel={user.cefrLevel}
+          initialAvatarUpdatedAt={user.avatarUpdatedAt?.toISOString() ?? null}
         />
-      </section>
-
-      <section className="space-y-3">
-        <div>
-          <h2 className="font-semibold">English level</h2>
-          <p className="text-sm text-muted-foreground">
-            The AI adjusts to your new level immediately, from your very next conversation.
-          </p>
-        </div>
-        <CefrLevelPicker current={user.cefrLevel} />
       </section>
 
       <section className="space-y-3">

@@ -21,6 +21,7 @@ export type DirectoryPerson = {
   bio: string | null;
   interests: string[];
   lastSeenAt: Date | null;
+  avatarUpdatedAt: Date | null;
 };
 
 export async function getBlockedIds(userId: string): Promise<string[]> {
@@ -58,7 +59,15 @@ export async function getDirectory(input: {
   const [people, total] = await Promise.all([
     db.user.findMany({
       where,
-      select: { id: true, name: true, cefrLevel: true, bio: true, interests: true, lastSeenAt: true },
+      select: {
+        id: true,
+        name: true,
+        cefrLevel: true,
+        bio: true,
+        interests: true,
+        lastSeenAt: true,
+        avatarUpdatedAt: true,
+      },
       // Most recently seen first; the client re-sorts online users to the top
       // once presence arrives, which the server cannot know.
       orderBy: [{ lastSeenAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
@@ -84,6 +93,7 @@ export async function getPersonProfile(userId: string, viewerId: string) {
       bio: true,
       interests: true,
       lastSeenAt: true,
+      avatarUpdatedAt: true,
       createdAt: true,
       stats: { select: { totalSeconds: true, sessionsCount: true } },
     },

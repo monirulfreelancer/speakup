@@ -174,11 +174,15 @@ export async function openMatchElsewhere(userId: string, exceptRoomId: string): 
 /** The caller's display name and level, for the ring overlay. */
 export async function loadRingProfile(
   userId: string,
-): Promise<{ name: string; level: string } | null> {
+): Promise<{ name: string; level: string; avatarUpdatedAt: string | null } | null> {
   const { rows } = await pool.query(
-    `SELECT name, cefr_level FROM users WHERE id = $1 LIMIT 1`,
+    `SELECT name, cefr_level, avatar_updated_at FROM users WHERE id = $1 LIMIT 1`,
     [userId],
   );
   if (rows.length === 0) return null;
-  return { name: rows[0].name, level: rows[0].cefr_level ?? "B1" };
+  return {
+    name: rows[0].name,
+    level: rows[0].cefr_level ?? "B1",
+    avatarUpdatedAt: rows[0].avatar_updated_at ? new Date(rows[0].avatar_updated_at).toISOString() : null,
+  };
 }

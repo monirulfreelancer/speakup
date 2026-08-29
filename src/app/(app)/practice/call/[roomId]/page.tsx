@@ -49,7 +49,7 @@ export default async function CallPage({
   const [partner, topic] = await Promise.all([
     db.user.findUnique({
       where: { id: partnerId },
-      select: { name: true, photoUrl: true, cefrLevel: true },
+      select: { name: true, avatarUpdatedAt: true, cefrLevel: true },
     }),
     match.topicId
       ? db.topic.findUnique({ where: { id: match.topicId }, select: { title: true, icon: true } })
@@ -63,7 +63,7 @@ export default async function CallPage({
       selfUserId={session.user.id}
       partnerUserId={partnerId}
       partnerName={partner?.name ?? "Your partner"}
-      partnerPhotoUrl={partner?.photoUrl ?? null}
+      partnerAvatarUpdatedAt={partner?.avatarUpdatedAt?.toISOString() ?? null}
       partnerLevel={partner?.cefrLevel ?? null}
       topic={topic}
       // user A created the Match, so they are the caller.

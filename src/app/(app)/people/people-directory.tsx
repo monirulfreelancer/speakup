@@ -7,6 +7,7 @@ import { usePresence } from "@/lib/realtime/use-presence";
 import { interestLabel } from "@/lib/interests";
 import { lastSeenLabel } from "@/lib/relative-time";
 import { LevelBadge } from "@/components/level-badge";
+import { Avatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { loadMorePeople } from "@/server/actions/people";
@@ -30,6 +31,7 @@ export type Person = {
   bio: string | null;
   interests: string[];
   lastSeenAt: Date | string | null;
+  avatarUpdatedAt: Date | string | null;
 };
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
@@ -189,9 +191,14 @@ export function PeopleDirectory({
                   className="flex min-h-16 items-center gap-3 rounded-xl border p-3 pr-16 transition-colors hover:bg-accent"
                 >
                   <div className="relative shrink-0">
-                    <div className="flex size-12 items-center justify-center rounded-full bg-accent text-lg font-bold">
-                      {person.name.charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar
+                      user={{
+                        id: person.id,
+                        displayName: person.name,
+                        avatarUpdatedAt: person.avatarUpdatedAt,
+                      }}
+                      size={48}
+                    />
                     {isOnline && (
                       <span
                         className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full border-2 border-background bg-green-500"
