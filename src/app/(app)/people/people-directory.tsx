@@ -10,6 +10,7 @@ import { LevelBadge } from "@/components/level-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { loadMorePeople } from "@/server/actions/people";
+import { startCall } from "@/server/actions/call";
 import type { CefrLevel } from "@/generated/prisma/enums";
 
 /*
@@ -55,6 +56,25 @@ export function PeopleDirectory({
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState(search);
   const [pending, startTransition] = useTransition();
+  const [callError, setCallError] = useState<string | null>(null);
+  const [callingId, setCallingId] = useState<string | null>(null);
+
+  // Call straight from the row, without opening the profile first.
+  function callPerson(personId: string) {
+    setCallError(null);
+    setCallingId(personId);
+    startTransition(async () => {
+      const result = await startCall(personId).catch(() => ({
+        ok: false as const,
+        error: "Could not start the call. Try again.",
+      }));
+      if (result.ok) router.push(`/practice/call/${result.roomId}`);
+      else {
+        setCallError(result.error);
+        setCallingId(null);
+      }
+    });
+  }
 
   // NOTE: a filter change remounts this component (the parent keys it on
   // the active filters), so paging state resets without syncing props to
@@ -163,10 +183,10 @@ export function PeopleDirectory({
           {sorted.map((person) => {
             const isOnline = online.has(person.id);
             return (
-              <li key={person.id}>
+              <li key={person.id} className="relative">
                 <Link
                   href={`/people/${person.id}`}
-                  className="flex min-h-16 items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-accent"
+                  className="flex min-h-16 items-center gap-3 rounded-xl border p-3 pr-16 transition-colors hover:bg-accent"
                 >
                   <div className="relative shrink-0">
                     <div className="flex size-12 items-center justify-center rounded-full bg-accent text-lg font-bold">
@@ -209,10 +229,26 @@ export function PeopleDirectory({
                     )}
                   </div>
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => callPerson(person.id)}
+                  disabled={!isOnline || pending}
+                  title={isOnline ? `Call ${person.name}` : `${person.name} is offline`}
+                  aria-label={isOnline ? `Call ${person.name}` : `${person.name} is offline`}
+                  className="absolute right-3 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border bg-background text-lg transition-colors hover:bg-accent disabled:opacity-30"
+                >
+                  {callingId === person.id ? "…" : "📞"}
+                </button>
               </li>
             );
           })}
         </ul>
+      )}
+
+      {callError && (
+        <p className="rounded-lg border border-destructive/50 p-3 text-center text-sm text-destructive">
+          {callError}
+        </p>
       )}
 
       {hasMore && (

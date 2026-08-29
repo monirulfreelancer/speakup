@@ -8,8 +8,12 @@ import {
   checkRoomMembership,
   endMatchByRoom,
   forgetRoomMembership,
+  loadOpenMatch,
+  loadRingProfile,
+  openMatchElsewhere,
   touchLastSeen,
 } from "./matching";
+import type { CefrLevel } from "./events";
 
 /*
  * SpeakUp realtime service.
@@ -24,6 +28,18 @@ const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? "http://localhost:3000";
 
 /** Socket.io room that every presence subscriber joins. */
 const PRESENCE_ROOM = "presence:subscribers";
+
+/** Unanswered ring gives up here; the Match closes as no_answer. */
+const RING_TIMEOUT_MS = 45_000;
+
+/** roomId -> pending no-answer timer, so accept/decline can cancel it. */
+const ringTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function clearRingTimer(roomId: string): void {
+  const timer = ringTimers.get(roomId);
+  if (timer) clearTimeout(timer);
+  ringTimers.delete(roomId);
+}
 
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents> & {
   data: { user: SocketUser; roomId?: string; callActive?: boolean };
@@ -166,32 +182,108 @@ io.on("connection", (rawSocket) => {
     return sockets.some((s) => s.id !== socket.id);
   }
 
-  async function relayToPeer(
-    roomId: string,
-    event: "call:invite" | "call:accept" | "call:decline" | "call:cancel",
-  ): Promise<void> {
-    if (!(await guardRoom(roomId, event))) return;
-    // The sender must be in the room to hear replies; joining is idempotent.
+  socket.on("call:invite", async ({ roomId }) => {
+    if (!(await guardRoom(roomId, "call:invite"))) return;
     void socket.join(roomId);
     socket.data.roomId = roomId;
 
-    if (!(await peerPresent(roomId))) {
-      console.log(`[signal] ${event} room=${roomId} user=${user.id} -> peer absent`);
+    const match = await loadOpenMatch(roomId);
+    if (!match) {
       socket.emit("call:error", { roomId, code: "peer-absent" });
       return;
     }
-    console.log(`[signal] ${event} room=${roomId} user=${user.id}`);
-    socket.to(roomId).emit(event, { roomId });
-  }
+    const targetId = match.userAId === user.id ? match.userBId : match.userAId;
 
-  socket.on("call:invite", ({ roomId }) => void relayToPeer(roomId, "call:invite"));
-  socket.on("call:accept", ({ roomId }) => {
-    // From here on a disconnect really is a dropped call, not navigation.
-    socket.data.callActive = true;
-    void relayToPeer(roomId, "call:accept");
+    const targetSockets = await io.in(`user:${targetId}`).fetchSockets();
+    if (targetSockets.length === 0) {
+      console.log(`[signal] call:invite room=${roomId} user=${user.id} -> target offline`);
+      socket.emit("call:error", { roomId, code: "peer-absent" });
+      await endMatchByRoom(roomId, "cancelled").catch(() => {});
+      return;
+    }
+
+    if (await openMatchElsewhere(targetId, roomId)) {
+      console.log(`[signal] call:invite room=${roomId} user=${user.id} -> target busy`);
+      socket.emit("call:error", { roomId, code: "busy" });
+      await endMatchByRoom(roomId, "cancelled").catch(() => {});
+      return;
+    }
+
+    const profile = await loadRingProfile(user.id);
+    console.log(`[signal] call:ring room=${roomId} from=${user.id} to=${targetId}`);
+    io.to(`user:${targetId}`).emit("call:ring", {
+      roomId,
+      fromUserId: user.id,
+      fromName: profile?.name ?? "A learner",
+      fromLevel: (profile?.level ?? "B1") as CefrLevel,
+      topic:
+        match.topicTitle && match.topicIcon
+          ? { title: match.topicTitle, icon: match.topicIcon }
+          : null,
+    });
+
+    // Server-owned no-answer timeout: both sides hear about it even if one
+    // of them navigated away mid-ring.
+    clearRingTimer(roomId);
+    ringTimers.set(
+      roomId,
+      setTimeout(() => {
+        void (async () => {
+          ringTimers.delete(roomId);
+          console.log(`[signal] call:missed room=${roomId} from=${user.id} to=${targetId}`);
+          io.to(`user:${user.id}`).emit("call:missed", { roomId });
+          io.to(`user:${targetId}`).emit("call:missed", { roomId });
+          await endMatchByRoom(roomId, "no_answer").catch(() => {});
+          forgetRoomMembership(roomId);
+        })();
+      }, RING_TIMEOUT_MS),
+    );
   });
-  socket.on("call:decline", ({ roomId }) => void relayToPeer(roomId, "call:decline"));
-  socket.on("call:cancel", ({ roomId }) => void relayToPeer(roomId, "call:cancel"));
+
+  socket.on("call:accept", async ({ roomId }) => {
+    if (!(await guardRoom(roomId, "call:accept"))) return;
+    clearRingTimer(roomId);
+    void socket.join(roomId);
+    socket.data.roomId = roomId;
+    socket.data.callActive = true;
+
+    const match = await loadOpenMatch(roomId);
+    const callerId = match ? (match.userAId === user.id ? match.userBId : match.userAId) : null;
+    console.log(`[signal] call:accept room=${roomId} user=${user.id}`);
+    // To the caller's user room AND the call room: the caller may be sitting
+    // on the call screen (in the room) or still navigating to it.
+    // User room ONLY: it reaches the caller wherever they are, including on
+    // the call screen. Also emitting to the call room delivered it twice,
+    // which would build two peer connections.
+    if (callerId) io.to(`user:${callerId}`).emit("call:accept", { roomId });
+  });
+
+  socket.on("call:decline", async ({ roomId }) => {
+    if (!(await guardRoom(roomId, "call:decline"))) return;
+    clearRingTimer(roomId);
+
+    const match = await loadOpenMatch(roomId);
+    const callerId = match ? (match.userAId === user.id ? match.userBId : match.userAId) : null;
+    console.log(`[signal] call:decline room=${roomId} user=${user.id}`);
+    if (callerId) io.to(`user:${callerId}`).emit("call:declined", { roomId });
+
+    await endMatchByRoom(roomId, "declined").catch(() => {});
+    forgetRoomMembership(roomId);
+  });
+
+  socket.on("call:cancel", async ({ roomId }) => {
+    if (!(await guardRoom(roomId, "call:cancel"))) return;
+    clearRingTimer(roomId);
+
+    const match = await loadOpenMatch(roomId);
+    const targetId = match ? (match.userAId === user.id ? match.userBId : match.userAId) : null;
+    console.log(`[signal] call:cancel room=${roomId} user=${user.id}`);
+    // call:missed closes the callee's ringing overlay.
+    if (targetId) io.to(`user:${targetId}`).emit("call:missed", { roomId });
+
+    await endMatchByRoom(roomId, "cancelled").catch(() => {});
+    forgetRoomMembership(roomId);
+  });
 
   socket.on("rtc:offer", async (payload) => {
     if (!(await guardRoom(payload?.roomId, "rtc:offer"))) return;
@@ -221,6 +313,7 @@ io.on("connection", (rawSocket) => {
   socket.on("call:end", async ({ roomId, reason }) => {
     if (!(await guardRoom(roomId, "call:end"))) return;
     socket.data.callActive = false;
+    clearRingTimer(roomId);
     console.log(`[signal] call:end room=${roomId} user=${user.id} reason=${reason}`);
     socket.to(roomId).emit("call:ended", { reason: reason === "failed" ? "failed" : "partner_left" });
     void socket.leave(roomId);

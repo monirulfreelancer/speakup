@@ -128,3 +128,57 @@ export type { PartnerProfile };
 export async function touchLastSeen(userId: string): Promise<void> {
   await pool.query(`UPDATE users SET last_seen_at = now() WHERE id = $1`, [userId]);
 }
+
+export type MatchRow = {
+  id: string;
+  roomId: string;
+  userAId: string;
+  userBId: string;
+  topicTitle: string | null;
+  topicIcon: string | null;
+};
+
+/** The open Match for a room, with its topic, or null. */
+export async function loadOpenMatch(roomId: string): Promise<MatchRow | null> {
+  const { rows } = await pool.query(
+    `SELECT m.id, m.room_id, m.user_a_id, m.user_b_id, t.title, t.icon
+     FROM matches m
+     LEFT JOIN topics t ON t.id = m.topic_id
+     WHERE m.room_id = $1 AND m.ended_at IS NULL
+     LIMIT 1`,
+    [roomId],
+  );
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  return {
+    id: r.id,
+    roomId: r.room_id,
+    userAId: r.user_a_id,
+    userBId: r.user_b_id,
+    topicTitle: r.title,
+    topicIcon: r.icon,
+  };
+}
+
+/** Any other open Match this user is already in — the "busy" check. */
+export async function openMatchElsewhere(userId: string, exceptRoomId: string): Promise<boolean> {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM matches
+     WHERE ended_at IS NULL AND room_id <> $2 AND (user_a_id = $1 OR user_b_id = $1)
+     LIMIT 1`,
+    [userId, exceptRoomId],
+  );
+  return rows.length > 0;
+}
+
+/** The caller's display name and level, for the ring overlay. */
+export async function loadRingProfile(
+  userId: string,
+): Promise<{ name: string; level: string } | null> {
+  const { rows } = await pool.query(
+    `SELECT name, cefr_level FROM users WHERE id = $1 LIMIT 1`,
+    [userId],
+  );
+  if (rows.length === 0) return null;
+  return { name: rows[0].name, level: rows[0].cefr_level ?? "B1" };
+}

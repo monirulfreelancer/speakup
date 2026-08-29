@@ -45,7 +45,7 @@ export type RTCIceCandidateLike = {
 export type CallEndReason = "hangup" | "failed" | "partner_left";
 
 /** Why a call:error came back: today only the peer being absent. */
-export type CallErrorCode = "peer-absent";
+export type CallErrorCode = "peer-absent" | "busy";
 
 /** client -> server */
 export interface ClientToServerEvents {
@@ -94,5 +94,20 @@ export interface ServerToClientEvents {
   "call:cancel": (payload: { roomId: string }) => void;
   /** Sent back to the SENDER when the other member is not in the room. */
   "call:error": (payload: { roomId: string; code: CallErrorCode }) => void;
+  /**
+   * Delivered to the CALLEE's user:<id> room, not the call room — the point
+   * of ringing is to reach someone who is browsing elsewhere and has not
+   * joined the room yet.
+   */
+  "call:ring": (payload: {
+    roomId: string;
+    fromUserId: string;
+    fromName: string;
+    fromLevel: CefrLevel;
+    topic: MatchedTopic;
+  }) => void;
+  /** To the CALLER's user room, so it lands wherever they navigated. */
+  "call:declined": (payload: { roomId: string }) => void;
+  "call:missed": (payload: { roomId: string }) => void;
   error: (payload: { code: ErrorCode; message: string }) => void;
 }

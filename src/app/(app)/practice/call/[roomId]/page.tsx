@@ -66,6 +66,8 @@ export default async function CallPage({
       partnerPhotoUrl={partner?.photoUrl ?? null}
       partnerLevel={partner?.cefrLevel ?? null}
       topic={topic}
+      // user A created the Match, so they are the caller.
+      role={match.userAId === session.user.id ? "caller" : "callee"}
     />
   );
 }

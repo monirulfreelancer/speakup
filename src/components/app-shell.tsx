@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { IncomingCallProvider } from "@/components/call/incoming-call-provider";
 
 /*
  * App shell: bottom tab bar on mobile, left sidebar on desktop. Client
@@ -22,6 +23,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen md:flex">
+      {/* Alive on every signed-in page, so a ring reaches the user anywhere. */}
+      <IncomingCallProvider />
       {/* Desktop sidebar */}
       <aside className="hidden w-56 shrink-0 border-r md:flex md:flex-col">
         <div className="p-4">

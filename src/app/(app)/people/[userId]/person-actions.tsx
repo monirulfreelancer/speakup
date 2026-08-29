@@ -3,19 +3,42 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { blockUser } from "@/server/actions/people";
+import { startCall } from "@/server/actions/call";
+import { usePresence } from "@/lib/realtime/use-presence";
 import { Button } from "@/components/ui/button";
 
 /*
- * Call is present but inert until direct calling ships, so the layout does
- * not shift when it turns on. Block works now and is confirmed first —
- * it is not reversible from this screen.
+ * Call and Block. Calling is disabled while the person is offline — ringing
+ * someone who cannot hear it just wastes 45 seconds — and the reason is
+ * shown as text, not only as a tooltip.
  */
 
 export function PersonActions({ userId, name }: { userId: string; name: string }) {
   const router = useRouter();
+  const { online, ready } = usePresence();
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const isOnline = online.has(userId);
+  const callDisabled = pending || !isOnline;
+  const reason = !ready
+    ? "Checking if they are online…"
+    : isOnline
+      ? null
+      : `${name} is offline right now. They will see you called when they are back.`;
+
+  function call() {
+    setError(null);
+    startTransition(async () => {
+      const result = await startCall(userId).catch(() => ({
+        ok: false as const,
+        error: "Could not start the call. Try again.",
+      }));
+      if (result.ok) router.push(`/practice/call/${result.roomId}`);
+      else setError(result.error);
+    });
+  }
 
   function confirmBlock() {
     setError(null);
@@ -31,18 +54,16 @@ export function PersonActions({ userId, name }: { userId: string; name: string }
 
   return (
     <section className="space-y-3">
-      <div className="group relative">
-        <Button className="h-12 w-full text-base" disabled>
-          📞 Call {name}
-        </Button>
-        {/* Tooltip: title carries it for touch/assistive users too. */}
-        <span
-          title="Coming next"
-          className="pointer-events-none absolute inset-x-0 -top-9 mx-auto hidden w-max rounded-lg bg-foreground px-3 py-1 text-xs text-background group-hover:block"
+      <div>
+        <Button
+          className="h-12 w-full text-base"
+          onClick={call}
+          disabled={callDisabled}
+          title={reason ?? `Call ${name}`}
         >
-          Coming next
-        </span>
-        <p className="pt-1 text-center text-xs text-muted-foreground">Coming next</p>
+          {pending ? "Calling…" : `📞 Call ${name}`}
+        </Button>
+        {reason && <p className="pt-1 text-center text-xs text-muted-foreground">{reason}</p>}
       </div>
 
       {confirming ? (

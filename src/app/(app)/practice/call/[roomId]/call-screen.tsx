@@ -36,6 +36,8 @@ type Props = {
   partnerPhotoUrl: string | null;
   partnerLevel: CefrLevel | null;
   topic: { title: string; icon: string } | null;
+  /** "caller" created the Match; "callee" arrived here after accepting. */
+  role: "caller" | "callee";
 };
 
 type Phase = "idle" | "outgoing" | "incoming" | "connecting" | "connected" | "ended";
@@ -47,6 +49,7 @@ type EndedReason =
   | "no-answer"
   | "failed"
   | "peer-absent"
+  | "busy"
   | "mic-denied";
 
 const ENDED_COPY: Record<EndedReason, string> = {
@@ -56,7 +59,8 @@ const ENDED_COPY: Record<EndedReason, string> = {
   "no-answer": "No answer. Your partner may have stepped away.",
   failed:
     "The call could not connect. This usually means one of you is on a network that blocks voice calls. Try mobile data or another network.",
-  "peer-absent": "Your partner is no longer here.",
+  "peer-absent": "They are not online right now. Try someone else from the directory.",
+  busy: "They are already in another call. Try again in a few minutes.",
   "mic-denied":
     "SpeakUp could not use your microphone. Allow access in your browser, then call again.",
 };
@@ -93,7 +97,9 @@ function qualityLabel(stats: CallStats | null): { label: string; tone: string } 
 
 export function CallScreen(props: Props) {
   const router = useRouter();
-  const [phase, setPhase] = useState<Phase>("idle");
+  // No idle state any more: this screen is only reached with a call already
+  // in motion — the caller rings on arrival, the callee has just accepted.
+  const [phase, setPhase] = useState<Phase>(props.role === "caller" ? "outgoing" : "connecting");
   const [endedReason, setEndedReason] = useState<EndedReason>("you-ended");
   const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
   const [muted, setMuted] = useState(false);
@@ -103,17 +109,21 @@ export function CallScreen(props: Props) {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   // Room state: nothing may be sent before the server confirms the join, and
   // Call stays disabled until the partner is actually connected.
-  const [joined, setJoined] = useState(false);
-  const [peerPresent, setPeerPresent] = useState(false);
+  // Presence is tracked for the partner-left transitions below; the idle
+  // screen that displayed it is gone.
+  const [, setJoined] = useState(false);
+  const [, setPeerPresent] = useState(false);
 
   const callRef = useRef<VoiceCall | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const ringtoneRef = useRef<Ringtone | null>(null);
   const inviteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reportedPathRef = useRef(false);
+  // Guards the one-shot start, which must not re-fire on reconnect.
+  const startedRef = useRef(false);
   // Mirrors `phase` for the socket handlers, which are registered once and
   // would otherwise close over a stale value.
-  const phaseRef = useRef<Phase>("idle");
+  const phaseRef = useRef<Phase>(props.role === "caller" ? "outgoing" : "connecting");
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
@@ -153,8 +163,13 @@ export function CallScreen(props: Props) {
   );
 
   /** Builds the peer connection. Called only after the handshake completes. */
+  const mediaStartedRef = useRef(false);
+
   const beginMedia = useCallback(
     (initiator: boolean) => {
+      // One peer connection per screen, whatever the signaling does.
+      if (mediaStartedRef.current) return;
+      mediaStartedRef.current = true;
       const socket = getSocket();
       const call = new VoiceCall(
         props.roomId,
@@ -245,12 +260,19 @@ export function CallScreen(props: Props) {
       setPhase("idle");
     };
 
+    const onDeclined = () => {
+      sigLog("<-", "call:declined", props.roomId);
+      finish("declined");
+    };
+    const onMissed = () => {
+      sigLog("<-", "call:missed", props.roomId);
+      if (phaseRef.current === "outgoing") finish("no-answer");
+    };
+
     const onCallError = ({ code }: { code: string }) => {
       sigLog("<-", `call:error(${code})`, props.roomId);
-      if (code !== "peer-absent") return;
-      if (phaseRef.current === "outgoing" || phaseRef.current === "connecting") {
-        finish("peer-absent");
-      }
+      if (phaseRef.current !== "outgoing" && phaseRef.current !== "connecting") return;
+      finish(code === "busy" ? "busy" : "peer-absent");
     };
 
     const onEnded = () => {
@@ -267,6 +289,8 @@ export function CallScreen(props: Props) {
     socket.on("call:decline", onDecline);
     socket.on("call:cancel", onCancel);
     socket.on("call:error", onCallError);
+    socket.on("call:declined", onDeclined);
+    socket.on("call:missed", onMissed);
     socket.on("call:ended", onEnded);
     socket.on("room:partner_left", onEnded);
     socket.on("rtc:offer", onOffer);
@@ -277,6 +301,21 @@ export function CallScreen(props: Props) {
       sigLog("<-", "room:joined", props.roomId);
       setJoined(true);
       setPeerPresent(present);
+
+      // The caller rings as soon as the room is confirmed. The callee has
+      // already accepted, so it goes straight to media and waits for the
+      // offer.
+      if (!startedRef.current) {
+        startedRef.current = true;
+        if (props.role === "caller") {
+          sigLog("->", "call:invite", props.roomId);
+          socket.emit("call:invite", { roomId: props.roomId });
+          clearInviteTimer();
+          inviteTimerRef.current = setTimeout(() => finish("no-answer"), INVITE_TIMEOUT_MS);
+        } else {
+          beginMedia(false);
+        }
+      }
     };
 
     const onPeer = ({ present }: { present: boolean }) => {
@@ -333,6 +372,8 @@ export function CallScreen(props: Props) {
       socket.off("call:decline", onDecline);
       socket.off("call:cancel", onCancel);
       socket.off("call:error", onCallError);
+      socket.off("call:declined", onDeclined);
+      socket.off("call:missed", onMissed);
       socket.off("call:ended", onEnded);
       socket.off("room:partner_left", onEnded);
       socket.off("rtc:offer", onOffer);
@@ -341,7 +382,7 @@ export function CallScreen(props: Props) {
       ringtoneRef.current?.stop();
       ringtoneRef.current = null;
     };
-  }, [beginMedia, clearInviteTimer, finish, props.roomId, stopRinging, winsGlare]);
+  }, [beginMedia, clearInviteTimer, finish, props.roomId, props.role, stopRinging, winsGlare]);
 
   // Teardown on unmount (navigating away mid-call).
   useEffect(() => teardown, [teardown]);
@@ -353,36 +394,10 @@ export function CallScreen(props: Props) {
     return () => clearInterval(id);
   }, [phase]);
 
-  function callPartner() {
-    const socket = getSocket();
-    setPhase("outgoing");
-    sigLog("->", "call:invite", props.roomId);
-    socket.emit("call:invite", { roomId: props.roomId });
-    clearInviteTimer();
-    inviteTimerRef.current = setTimeout(() => {
-      socket.emit("call:cancel", { roomId: props.roomId });
-      finish("no-answer");
-    }, INVITE_TIMEOUT_MS);
-  }
-
   function cancelOutgoing() {
     clearInviteTimer();
     sigLog("->", "call:cancel", props.roomId);
     getSocket().emit("call:cancel", { roomId: props.roomId });
-    setPhase("idle");
-  }
-
-  function acceptIncoming() {
-    stopRinging();
-    sigLog("->", "call:accept", props.roomId);
-    getSocket().emit("call:accept", { roomId: props.roomId });
-    beginMedia(false);
-  }
-
-  function declineIncoming() {
-    stopRinging();
-    sigLog("->", "call:decline", props.roomId);
-    getSocket().emit("call:decline", { roomId: props.roomId });
     setPhase("idle");
   }
 
@@ -435,12 +450,6 @@ export function CallScreen(props: Props) {
         </div>
 
         <p className="text-sm tabular-nums text-muted-foreground" aria-live="polite">
-          {phase === "idle" &&
-            (peerPresent
-              ? "Ready when you are"
-              : joined
-                ? "Waiting for your partner to arrive…"
-                : "Connecting to the room…")}
           {phase === "outgoing" && `Calling ${props.partnerName}…`}
           {phase === "incoming" && "Incoming call"}
           {phase === "connecting" &&
@@ -470,40 +479,10 @@ export function CallScreen(props: Props) {
           </div>
         )}
 
-        {phase === "idle" && (
-          <div className="grid gap-2">
-            <Button
-              className="h-14 w-full rounded-full text-base font-medium"
-              onClick={callPartner}
-              disabled={!joined || !peerPresent}
-            >
-              📞 Call {props.partnerName}
-            </Button>
-            <Button
-              variant="outline"
-              className="h-11"
-              onClick={() => router.push("/practice/human")}
-            >
-              Leave
-            </Button>
-          </div>
-        )}
-
         {phase === "outgoing" && (
           <div className="flex justify-center">
             <Button variant="destructive" className="h-14 rounded-full px-8" onClick={cancelOutgoing}>
               Cancel
-            </Button>
-          </div>
-        )}
-
-        {phase === "incoming" && (
-          <div className="grid grid-cols-2 gap-3">
-            <Button variant="destructive" className="h-14 rounded-full" onClick={declineIncoming}>
-              Decline
-            </Button>
-            <Button className="h-14 rounded-full bg-green-600 text-white hover:bg-green-700" onClick={acceptIncoming}>
-              Accept
             </Button>
           </div>
         )}
