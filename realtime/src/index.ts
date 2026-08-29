@@ -10,7 +10,7 @@ import {
   endMatchByRoom,
   enqueue,
   forgetRoomMembership,
-  isRoomMember,
+  checkRoomMembership,
   queuePosition,
   runMatcher,
 } from "./matching";
@@ -32,7 +32,7 @@ const WAIT_PER_POSITION = 15;
 const LEVELS: CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents> & {
-  data: { user: SocketUser; roomId?: string };
+  data: { user: SocketUser; roomId?: string; callActive?: boolean };
 };
 
 const app = express();
@@ -184,12 +184,22 @@ io.on("connection", (rawSocket) => {
   async function guardRoom(roomId: string, event: string): Promise<boolean> {
     if (typeof roomId !== "string" || roomId.length === 0) return false;
     try {
-      const member = await isRoomMember(roomId, user.id);
-      if (!member) {
-        console.warn(`[signal] rejected ${event} room=${roomId} user=${user.id} (not a member)`);
+      const check = await checkRoomMembership(roomId, user.id);
+      if (!check.ok) {
+        // Log WHY, not just that it failed: whether the row exists at all,
+        // its end state, and who the members actually are. Diagnosing this
+        // from "(not a member)" alone cost a debugging round trip.
+        console.warn(
+          `[signal] rejected ${event} room=${roomId} user=${user.id}` +
+            ` matchFound=${check.found}` +
+            (check.found
+              ? ` endReason=${check.endReason ?? "null"} endedAt=${check.endedAt ? "set" : "null"}` +
+                ` members=[${check.members?.join(", ")}]`
+              : ""),
+        );
         socket.emit("error", { code: "bad-request", message: "That call is not available." });
       }
-      return member;
+      return check.ok;
     } catch (error) {
       console.error(`[signal] membership check failed for ${event} room=${roomId}:`, error instanceof Error ? error.message : error);
       return false;
@@ -228,7 +238,11 @@ io.on("connection", (rawSocket) => {
   }
 
   socket.on("call:invite", ({ roomId }) => void relayToPeer(roomId, "call:invite"));
-  socket.on("call:accept", ({ roomId }) => void relayToPeer(roomId, "call:accept"));
+  socket.on("call:accept", ({ roomId }) => {
+    // From here on a disconnect really is a dropped call, not navigation.
+    socket.data.callActive = true;
+    void relayToPeer(roomId, "call:accept");
+  });
   socket.on("call:decline", ({ roomId }) => void relayToPeer(roomId, "call:decline"));
   socket.on("call:cancel", ({ roomId }) => void relayToPeer(roomId, "call:cancel"));
 
@@ -239,6 +253,7 @@ io.on("connection", (rawSocket) => {
       socket.emit("call:error", { roomId: payload.roomId, code: "peer-absent" });
       return;
     }
+    socket.data.callActive = true;
     console.log(`[signal] rtc:offer room=${payload.roomId} user=${user.id}`);
     socket.to(payload.roomId).emit("rtc:offer", payload);
   });
@@ -258,6 +273,7 @@ io.on("connection", (rawSocket) => {
 
   socket.on("call:end", async ({ roomId, reason }) => {
     if (!(await guardRoom(roomId, "call:end"))) return;
+    socket.data.callActive = false;
     console.log(`[signal] call:end room=${roomId} user=${user.id} reason=${reason}`);
     socket.to(roomId).emit("call:ended", { reason: reason === "failed" ? "failed" : "partner_left" });
     void socket.leave(roomId);
@@ -295,8 +311,25 @@ io.on("connection", (rawSocket) => {
         const roomId = socket.data.roomId;
         socket.to(roomId).emit("room:partner_left");
         socket.to(roomId).emit("call:ended", { reason: "partner_left" });
-        await endMatchByRoom(roomId, "disconnected").catch(() => {});
-        forgetRoomMembership(roomId);
+
+        /*
+         * ONLY close the Match if a call was actually in progress.
+         *
+         * Navigating from the find-partner screen to the call screen
+         * disconnects the singleton socket, and closing the Match there
+         * stamped end_reason='disconnected' seconds after matching — which
+         * then made BOTH members fail the membership check and never see
+         * each other's invite. A disconnect with no live call is just
+         * navigation; the match stays open so the call screen can join it.
+         */
+        if (socket.data.callActive) {
+          await endMatchByRoom(roomId, "disconnected").catch(() => {});
+          forgetRoomMembership(roomId);
+        } else {
+          console.log(
+            `[signal] socket left room=${roomId} user=${user.id} without an active call — match left open`,
+          );
+        }
       }
     }
   });
