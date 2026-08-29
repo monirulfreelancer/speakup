@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { LevelBadge } from "@/components/level-badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 
 export const metadata = { title: "Dashboard — SpeakUp" };
 
@@ -53,6 +54,8 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 p-4 md:p-8">
+      {/* Install nudge — only after the first completed session. */}
+      <InstallPrompt eligible={(stats?.sessionsCount ?? 0) >= 1} />
       {/* Header */}
       <header className="flex items-center gap-3">
         <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-lg font-bold">

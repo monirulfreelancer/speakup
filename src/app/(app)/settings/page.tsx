@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
+import { InstallSettingsEntry } from "@/components/pwa/install-settings-entry";
 import {
   CefrLevelPicker,
   EnforcementModePicker,
@@ -66,6 +67,7 @@ export default async function SettingsPage() {
         <h2 className="font-semibold">App</h2>
         <UiLanguageSelect current={settings?.uiLanguage ?? "en"} />
         <NotificationsToggle initial={settings?.notificationsEnabled ?? false} />
+        <InstallSettingsEntry />
       </section>
 
       <section className="border-t pt-6">
