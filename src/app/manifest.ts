@@ -1,10 +1,18 @@
 import type { MetadataRoute } from "next";
+import { env } from "@/lib/env";
 
 /*
  * Web app manifest (served at /manifest.webmanifest). TWA-ready: standalone
  * display, portrait, a maskable 512 icon with safe-area padding, and
  * shortcuts — the same manifest a Bubblewrap/PWABuilder Android wrap reads.
  */
+
+/*
+ * Rendered per request, not at build time: the AI shortcut depends on
+ * AI_MODE_ENABLED, and a prerendered manifest would freeze whatever the
+ * flag happened to be during the build.
+ */
+export const dynamic = "force-dynamic";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -31,14 +39,19 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
     shortcuts: [
-      {
-        name: "Talk with AI",
-        url: "/practice/ai",
-        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
-      },
+      // The AI shortcut would deep-link into a redirect while the flag is off.
+      ...(env.AI_MODE_ENABLED
+        ? [
+            {
+              name: "Talk with AI",
+              url: "/practice/ai",
+              icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
+            },
+          ]
+        : []),
       {
         name: "Find a Partner",
-        url: "/practice/human",
+        url: "/people",
         icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
       },
     ],

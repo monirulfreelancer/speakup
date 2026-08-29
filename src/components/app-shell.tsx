@@ -11,15 +11,25 @@ import { IncomingCallProvider } from "@/components/call/incoming-call-provider";
  * server components and render into {children}.
  */
 
-const NAV = [
-  { href: "/dashboard", label: "Home", icon: "🏠" },
-  { href: "/practice/ai", label: "Practice", icon: "🎙️" },
+type NavItem = { href: string; label: string; icon: string };
+
+const HOME: NavItem = { href: "/dashboard", label: "Home", icon: "🏠" };
+const AI_PRACTICE: NavItem = { href: "/practice/ai", label: "Practice", icon: "🎙️" };
+const REST: NavItem[] = [
   { href: "/people", label: "People", icon: "🧑‍🤝‍🧑" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  aiModeEnabled,
+}: {
+  children: ReactNode;
+  /** From the server layout: NEXT_PUBLIC_ would bake this in at build time. */
+  aiModeEnabled: boolean;
+}) {
   const pathname = usePathname();
+  const NAV = aiModeEnabled ? [HOME, AI_PRACTICE, ...REST] : [HOME, ...REST];
 
   return (
     <div className="min-h-screen md:flex">
@@ -56,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Mobile bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background md:hidden">
-        <div className="grid grid-cols-4">
+        <div className={`grid ${NAV.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
           {NAV.map((item) => {
             const active = pathname.startsWith(item.href);
             return (

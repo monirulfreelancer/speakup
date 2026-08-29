@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { extractMeta, getChatProvider, getProviderName, hasProviderKey } from "@/lib/ai";
 import { buildSystemPrompt } from "@/lib/ai/prompts";
 import { checkPracticeQuota } from "@/server/quota";
@@ -39,6 +40,11 @@ function friendly(status: number, code: string, message: string, extra?: Record<
 }
 
 export async function POST(request: Request) {
+  // Flag off: behave as though the endpoint does not exist.
+  if (!env.AI_MODE_ENABLED) {
+    return new NextResponse("Not found", { status: 404 });
+  }
+
   const session = await auth();
   if (!session?.user?.id) return friendly(401, "unauthenticated", "Please log in again.");
 

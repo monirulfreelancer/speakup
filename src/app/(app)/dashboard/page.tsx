@@ -6,6 +6,7 @@ import { LevelBadge } from "@/components/level-badge";
 import { Avatar } from "@/components/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
+import { env } from "@/lib/env";
 
 export const metadata = { title: "Dashboard — SpeakUp" };
 
@@ -72,8 +73,10 @@ export default async function DashboardPage() {
         <LevelBadge level={user.cefrLevel} />
       </header>
 
-      {/* Primary actions */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      {/* Primary actions. With AI hidden there is only one card, so the grid
+          collapses to a single column rather than leaving a gap. */}
+      <div className={`grid gap-3 ${env.AI_MODE_ENABLED ? "sm:grid-cols-2" : ""}`}>
+        {env.AI_MODE_ENABLED && (
         <Link
           href="/practice/ai"
           className="flex min-h-32 flex-col justify-between rounded-2xl bg-primary p-5 text-primary-foreground transition-opacity hover:opacity-90"
@@ -86,6 +89,7 @@ export default async function DashboardPage() {
             <span className="block text-sm opacity-80">Practice any time, no pressure</span>
           </span>
         </Link>
+        )}
         {user.isAdult ? (
           <Link
             href="/people"

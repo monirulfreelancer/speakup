@@ -24,6 +24,20 @@ const envSchema = z.object({
   AI_MODEL: z.string().optional(),
   DAILY_MINUTES_QUOTA: z.coerce.number().int().positive().default(60),
 
+  /*
+   * AI practice visibility. Deliberately NOT a NEXT_PUBLIC_ variable:
+   * those are inlined at build time, and this must be flippable from the
+   * Coolify dashboard with a restart and no rebuild.
+   *
+   * Optional, and absent means HIDDEN. Anything other than "true"/"1" is
+   * treated as off rather than rejected, so a typo can never stop the app
+   * from booting.
+   */
+  AI_MODE_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v?.toLowerCase() === "true" || v === "1"),
+
   // TURN (coturn) for WebRTC. All optional: without TURN_SECRET the app
   // falls back to STUN only, which works on most home networks and fails on
   // symmetric NAT — degraded, not broken, so it must never block boot.
