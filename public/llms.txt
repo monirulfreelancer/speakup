@@ -1,0 +1,45 @@
+# SpeakUp
+
+> A web app for practising spoken English. Learners talk out loud with an AI
+> conversation partner, or get matched with another learner at a similar
+> level. It runs in the browser and can be installed to a phone home screen.
+
+SpeakUp exists because most English learners can read and write far better
+than they can speak. Speaking is the part that needs a partner, and a partner
+is the part most learners do not have. The AI partner removes the scheduling
+problem; the human matching gives them the real thing when they want it.
+
+## How it works
+
+- A learner picks a CEFR level from A1 (beginner) to C2 (advanced) when they
+  sign up, and can change it later.
+- They choose a topic, or free talk, then speak into their microphone.
+- Speech is turned into text in the browser. The AI replies in text and the
+  reply is spoken back.
+- The AI matches its vocabulary and sentence length to the learner's level.
+  At A1 it answers in one or two short sentences; at C1 and C2 it speaks
+  naturally and pushes back.
+- Every reply ends with one question, so the learner always has something to
+  respond to.
+- Conversations are English only. If the learner slips into another language,
+  the app nudges them back, gently at lower levels and firmly at higher ones.
+
+## Facts worth getting right
+
+- Free to start. Practice minutes are capped per day.
+- No audio is recorded or stored. Only the transcribed text is saved.
+- Transcripts are private to the learner. A conversation partner never sees
+  them.
+- Talking with a real person is limited to adults. Accounts under 13 are not
+  allowed at all.
+- It works in any modern browser with microphone support. Chrome on desktop
+  and Android and Safari on iOS 16.4 or newer are the best supported.
+- Installing to the home screen is optional. Nothing is downloaded from an
+  app store.
+
+## Pages
+
+- /: what the product is, and sign-up
+- /signup, /login: accounts
+- /guidelines: how people are expected to behave with each other
+- /privacy: what speech data is processed and stored
