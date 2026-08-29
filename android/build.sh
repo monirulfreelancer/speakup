@@ -43,6 +43,10 @@ cp app-release-bundle.aab build/speakup.aab 2>/dev/null || true
 echo "==> Copying the APK into the web app (served at /downloads/speakup.apk)..."
 cp build/speakup.apk ../public/downloads/speakup.apk
 
+# The web image cannot read this folder (android/ is dockerignored), so the
+# version travels next to the APK for the download page to show.
+node -p "require('./twa-manifest.json').appVersionName" > ../public/downloads/apk-version.txt
+
 echo ""
 echo "Done."
 echo "  APK: android/build/speakup.apk (and public/downloads/speakup.apk)"

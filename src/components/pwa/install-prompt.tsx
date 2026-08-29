@@ -19,14 +19,16 @@ import {
  * after a dismissal.
  */
 
-export function InstallPrompt({ eligible }: { eligible: boolean }) {
+export function InstallPrompt() {
   const [visible, setVisible] = useState(false);
   const [ios, setIos] = useState(false);
 
   useEffect(() => {
-    if (!eligible) return;
     const decide = () => {
-      if (isStandalone() || wasDismissed()) return setVisible(false);
+      // Never inside the installed app or the APK, never after a dismissal,
+      // and never on desktop — this is a "put it on your phone" nudge.
+      const mobile = window.matchMedia("(max-width: 768px)").matches || navigator.maxTouchPoints > 0;
+      if (!mobile || isStandalone() || wasDismissed()) return setVisible(false);
       if (isIosSafari()) {
         setIos(true);
         setVisible(true);
@@ -36,7 +38,7 @@ export function InstallPrompt({ eligible }: { eligible: boolean }) {
     };
     decide();
     return onInstallStateChange(decide);
-  }, [eligible]);
+  }, []);
 
   if (!visible) return null;
 

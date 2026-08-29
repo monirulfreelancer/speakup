@@ -98,7 +98,7 @@ export default async function DashboardPage({
 
   return (
     <main className="mx-auto w-full max-w-2xl space-y-5 p-4 md:p-8">
-      <InstallPrompt eligible={conversations >= 1} />
+      <InstallPrompt />
 
       {/* Compact: one row, no wasted vertical space above the list. */}
       <header className="flex items-center gap-3">

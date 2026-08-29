@@ -138,7 +138,13 @@ export default async function LandingPage() {
                 Log in
               </Link>
             </div>
-            <p className="text-sm text-muted">Free to start. Works in your browser.</p>
+            <p className="text-sm text-muted">
+              Free to start. Works in your browser, or{" "}
+              <Link href="/download" className="font-bold text-primary underline underline-offset-4">
+                put it on your phone
+              </Link>
+              .
+            </p>
           </section>
 
           {/* Features */}
