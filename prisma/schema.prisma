@@ -77,6 +77,13 @@ model User {
   dateOfBirth    DateTime?  @map("date_of_birth") @db.Date
   isAdult        Boolean    @default(false) @map("is_adult")
 
+  // Directory profile. Interests come from the fixed list in
+  // src/lib/interests.ts; storing free text here would make the chips
+  // meaningless for filtering later.
+  bio        String?  @db.VarChar(200)
+  interests  String[] @default([])
+  lastSeenAt DateTime? @map("last_seen_at")
+
   enforcementMode EnforcementMode @default(AUTO) @map("enforcement_mode")
   role            String          @default("user")
   onboardedAt     DateTime?       @map("onboarded_at")

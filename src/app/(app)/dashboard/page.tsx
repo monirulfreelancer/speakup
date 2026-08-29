@@ -89,7 +89,7 @@ export default async function DashboardPage() {
         </Link>
         {user.isAdult ? (
           <Link
-            href="/practice/human"
+            href="/people"
             className="flex min-h-32 flex-col justify-between rounded-2xl border-2 p-5 transition-colors hover:bg-accent"
           >
             <span className="text-3xl" aria-hidden>
@@ -98,7 +98,7 @@ export default async function DashboardPage() {
             <span>
               <span className="block text-lg font-bold">Talk with a Person</span>
               <span className="block text-sm text-muted-foreground">
-                Get matched with another learner
+                Browse learners and pick someone
               </span>
             </span>
           </Link>

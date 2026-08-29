@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { INTEREST_VALUES, MAX_BIO_LENGTH, MAX_INTERESTS } from "@/lib/interests";
 
 /*
  * Settings mutations. Each action re-authenticates, zod-validates its input,
@@ -96,5 +97,46 @@ export async function updateNotifications(enabled: boolean): Promise<SettingsRes
     data: { notificationsEnabled: parsed.data },
   });
   revalidatePath("/settings");
+  return { ok: true };
+}
+
+/*
+ * Directory profile: display name, bio and interests. Everything is trimmed
+ * and hard-capped server-side — the client counter is a convenience, not a
+ * guarantee.
+ */
+const profileSchema = z.object({
+  name: z.string().trim().min(1, "Please enter a name").max(50, "That name is too long"),
+  bio: z.string().trim().max(MAX_BIO_LENGTH, `Keep your bio under ${MAX_BIO_LENGTH} characters`),
+  interests: z
+    .array(z.enum(INTEREST_VALUES as [string, ...string[]]))
+    .max(MAX_INTERESTS, `Pick at most ${MAX_INTERESTS} interests`),
+});
+
+export async function updateProfile(input: {
+  name: string;
+  bio: string;
+  interests: string[];
+}): Promise<SettingsResult> {
+  const userId = await requireUserId();
+  if (!userId) return { ok: false, error: "Not signed in" };
+
+  const parsed = profileSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "That profile is not valid" };
+  }
+
+  await db.user.update({
+    where: { id: userId },
+    data: {
+      name: parsed.data.name,
+      bio: parsed.data.bio || null,
+      // Deduplicate: the UI cannot produce repeats, but a crafted request can.
+      interests: [...new Set(parsed.data.interests)],
+    },
+  });
+
+  revalidatePath("/settings");
+  revalidatePath("/people");
   return { ok: true };
 }

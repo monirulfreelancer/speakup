@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 const NAV = [
   { href: "/dashboard", label: "Home", icon: "🏠" },
   { href: "/practice/ai", label: "Practice", icon: "🎙️" },
-  { href: "/vocabulary", label: "Vocabulary", icon: "📖" },
+  { href: "/people", label: "People", icon: "🧑‍🤝‍🧑" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 

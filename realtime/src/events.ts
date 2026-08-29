@@ -49,8 +49,8 @@ export type CallErrorCode = "peer-absent";
 
 /** client -> server */
 export interface ClientToServerEvents {
-  "queue:join": (payload: { allowedLevels?: CefrLevel[] }) => void;
-  "queue:leave": () => void;
+  /** Ask for the current online set and receive updates. */
+  "presence:subscribe": () => void;
   "room:ready": (payload: { roomId: string }) => void;
   "room:leave": (payload: { roomId: string }) => void;
   /**
@@ -75,13 +75,10 @@ export interface ClientToServerEvents {
 
 /** server -> client */
 export interface ServerToClientEvents {
-  "queue:waiting": (payload: { position: number; estimatedWait: number }) => void;
-  "queue:matched": (payload: {
-    roomId: string;
-    partner: PartnerProfile;
-    topic: MatchedTopic;
-  }) => void;
-  "queue:timeout": () => void;
+  /** The full online set, sent once on subscribe. */
+  "presence:list": (payload: { userIds: string[] }) => void;
+  /** One user came online or went offline. */
+  "presence:changed": (payload: { userId: string; online: boolean }) => void;
   "room:partner_left": () => void;
   /** Confirms the join, and says whether the other member is here right now. */
   "room:joined": (payload: { roomId: string; peerPresent: boolean }) => void;
