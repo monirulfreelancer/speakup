@@ -276,8 +276,10 @@ model UserStats {
   aiSessions       Int       @default(0) @map("ai_sessions")
   humanSessions    Int       @default(0) @map("human_sessions")
   distinctPartners Int       @default(0) @map("distinct_partners")
-  currentStreak    Int       @default(0) @map("current_streak")
-  longestStreak    Int       @default(0) @map("longest_streak")
+  // NOTE: there are deliberately no streak columns here. The dashboard
+  // derives the streak from distinct days with COMPLETED PracticeSession
+  // rows, which is the only figure anything displays. A stored copy would be
+  // a second source of truth that drifts from the one on screen.
   lastPracticeDate DateTime? @map("last_practice_date") @db.Date
   wordsSaved       Int       @default(0) @map("words_saved")
 
@@ -342,6 +344,10 @@ model Match {
   answeredAt      DateTime? @map("answered_at")
   endedAt         DateTime? @map("ended_at")
   endReason       String?   @map("end_reason")
+  // Set once, inside the transaction that closes the match and credits both
+  // participants. It is the idempotency guard: a second close for the same
+  // match finds it non-null and credits nobody again.
+  statsRecordedAt DateTime? @map("stats_recorded_at")
   durationSeconds Int       @default(0) @map("duration_seconds")
   // Which ICE path the call used: host / srflx / relay. Measuring how often
   // TURN actually relays decides whether coturn stays on this VPS.

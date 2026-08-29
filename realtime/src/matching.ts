@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import { pool } from "./db";
 import type { PartnerProfile } from "./events";
 
@@ -9,14 +10,157 @@ import type { PartnerProfile } from "./events";
  * table and every room/call helper below are unchanged and still in use.
  */
 
+/* -------------------------------------------------------------------------
+ * Closing a call, and crediting it
+ * ---------------------------------------------------------------------- */
+
+/*
+ * Stats are written HERE, on the server, at the moment the match closes —
+ * not from the browser. Someone whose phone dies mid-call, or who walks into
+ * a lift, still earns the minutes they actually spoke for, and the server
+ * already knows the duration.
+ *
+ * A call only counts if it was genuinely answered and genuinely happened:
+ * answered_at set, and at least MIN_CREDITED_SECONDS of it. A misdial that
+ * rang for four seconds is not a conversation, and crediting it would make
+ * the numbers worthless.
+ */
+const MIN_CREDITED_SECONDS = 30;
+
+/*
+ * End reasons that never count, whatever the clock says. The first three
+ * cannot have answered_at set anyway, so they are belt and braces; the one
+ * that matters is 'abandoned', which the staleness sweep stamps on calls
+ * both sides silently vanished from. Those DO carry an answered_at and a
+ * long duration — the clock kept running while nobody was there — so
+ * without this they would credit an hour of "practice" to two people who
+ * were not present for it.
+ */
+const UNCREDITED_END_REASONS = ["abandoned", "no_answer", "declined", "cancelled"];
+
+type ClosedMatch = {
+  id: string;
+  user_a_id: string;
+  user_b_id: string;
+  answered_at: Date | null;
+  started_at: Date;
+  ended_at: Date;
+  duration_seconds: number;
+};
+
+/**
+ * Closes the open match for a room and, if it earned it, credits both
+ * participants — all in ONE transaction. A crash partway cannot leave one
+ * side credited and the other not, and cannot leave a closed match that
+ * nothing will ever come back to credit.
+ */
 export async function endMatchByRoom(roomId: string, reason: string): Promise<void> {
-  await pool.query(
-    `UPDATE matches
-     SET ended_at = now(),
-         end_reason = $2,
-         duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM (now() - started_at))::int)
-     WHERE room_id = $1 AND ended_at IS NULL`,
-    [roomId, reason],
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const { rows } = await client.query(
+      `UPDATE matches
+       SET ended_at = now(),
+           end_reason = $2,
+           duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM (now() - started_at))::int)
+       WHERE room_id = $1 AND ended_at IS NULL
+       RETURNING id, user_a_id, user_b_id, answered_at, started_at, ended_at, duration_seconds`,
+      [roomId, reason],
+    );
+
+    // No row means the match was already closed. Nothing to credit: whoever
+    // closed it first was responsible for crediting it.
+    if (rows.length === 1) await creditParticipants(client, rows[0] as ClosedMatch, reason);
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    // Loud, because a swallowed failure here is silently lost practice time.
+    // The match stays open and the staleness sweep will close it later.
+    console.error(`[stats] failed to close room=${roomId} reason=${reason}`, error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function creditParticipants(
+  client: PoolClient,
+  match: ClosedMatch,
+  reason: string,
+): Promise<void> {
+  if (!match.answered_at) return;
+  if (match.duration_seconds < MIN_CREDITED_SECONDS) return;
+  if (UNCREDITED_END_REASONS.includes(reason)) return;
+
+  /*
+   * The idempotency gate. Claiming the marker and writing the numbers happen
+   * in the same transaction, so a second close path for this match — now, or
+   * after some future refactor — finds stats_recorded_at already set and
+   * credits nobody a second time.
+   */
+  const claimed = await client.query(
+    `UPDATE matches SET stats_recorded_at = now()
+     WHERE id = $1 AND stats_recorded_at IS NULL
+     RETURNING id`,
+    [match.id],
+  );
+  if (claimed.rowCount !== 1) return;
+
+  // Have these two ever been credited for talking to each other before? Asked
+  // before this match's own marker counts, so a first call reads as new.
+  const priorTogether = await client.query(
+    `SELECT 1 FROM matches
+     WHERE id <> $1
+       AND stats_recorded_at IS NOT NULL
+       AND ((user_a_id = $2 AND user_b_id = $3) OR (user_a_id = $3 AND user_b_id = $2))
+     LIMIT 1`,
+    [match.id, match.user_a_id, match.user_b_id],
+  );
+  const newPartner = priorTogether.rowCount === 0 ? 1 : 0;
+
+  for (const userId of [match.user_a_id, match.user_b_id]) {
+    /*
+     * A PracticeSession row per participant, exactly like the AI path writes.
+     * That is what makes a human call appear in history AND what makes the
+     * dashboard's streak work: it counts distinct days with COMPLETED rows,
+     * so the reading side needed no change at all.
+     *
+     * The id is a uuid rather than a cuid: Prisma's cuid() default lives in
+     * the client, which this service deliberately does not use. The column is
+     * text and nothing parses it.
+     */
+    await client.query(
+      `INSERT INTO practice_sessions
+         (id, user_id, mode, match_id, level_at_session, started_at, ended_at, duration_seconds, status)
+       SELECT gen_random_uuid()::text, u.id, 'HUMAN'::"SessionMode", $2,
+              COALESCE(u.cefr_level, 'B1'::"CefrLevel"), $3, $4, $5, 'COMPLETED'::"SessionStatus"
+       FROM users u WHERE u.id = $1`,
+      [userId, match.id, match.started_at, match.ended_at, match.duration_seconds],
+    );
+
+    /*
+     * INSERT ... ON CONFLICT, not UPDATE: only the email signup path creates
+     * a user_stats row, so anyone who arrived through Google has none, and a
+     * bare UPDATE would silently credit nothing.
+     */
+    await client.query(
+      `INSERT INTO user_stats
+         (id, user_id, total_seconds, sessions_count, human_sessions, distinct_partners)
+       VALUES (gen_random_uuid()::text, $1, $2, 1, 1, $3)
+       ON CONFLICT (user_id) DO UPDATE SET
+         total_seconds     = user_stats.total_seconds + EXCLUDED.total_seconds,
+         sessions_count    = user_stats.sessions_count + 1,
+         human_sessions    = user_stats.human_sessions + 1,
+         distinct_partners = user_stats.distinct_partners + EXCLUDED.distinct_partners`,
+      [userId, match.duration_seconds, newPartner],
+    );
+  }
+
+  // One line per recorded call. Ids and a duration, nothing else.
+  console.log(
+    `[stats] recorded match=${match.id} users=${match.user_a_id},${match.user_b_id} duration=${match.duration_seconds}s`,
   );
 }
 
