@@ -15,6 +15,18 @@ import type { IcePayload, RTCSessionDescriptionLike, SdpPayload } from "@/lib/re
  * this app.
  */
 
+/*
+ * Diagnostics. Off unless NEXT_PUBLIC_RTC_DEBUG is "1", because WebRTC
+ * failures are otherwise invisible: states flip silently and the only
+ * symptom is a spinner. Deliberately logs STATE ONLY — never SDP bodies or
+ * candidate strings, which carry network identifiers.
+ */
+const RTC_DEBUG = process.env.NEXT_PUBLIC_RTC_DEBUG === "1";
+
+function rtcLog(...args: unknown[]): void {
+  if (RTC_DEBUG) console.log("[rtc]", ...args);
+}
+
 export type ConnectionState = "connecting" | "connected" | "reconnecting" | "failed" | "ended";
 export type CandidatePairType = "host" | "srflx" | "prflx" | "relay" | "unknown";
 
@@ -63,13 +75,22 @@ export class VoiceCall {
   private statsTimer: ReturnType<typeof setInterval> | null = null;
   private ended = false;
 
+  private localCandidates = 0;
+  private remoteCandidates = 0;
+
+  /**
+   * @param initiator true for the side that pressed Call. Only the initiator
+   *   sends the first offer; the callee waits. This replaces deciding the
+   *   offer direction from politeness, which raced with room membership.
+   */
   constructor(
     private readonly roomId: string,
     private readonly polite: boolean,
+    private readonly initiator: boolean,
     private readonly callbacks: PeerCallbacks,
   ) {}
 
-  /** Acquires the mic and opens the connection. The impolite peer offers first. */
+  /** Acquires the mic and opens the connection. Only the initiator offers. */
   async start(): Promise<void> {
     let stream: MediaStream;
     try {
@@ -112,8 +133,16 @@ export class VoiceCall {
       this.callbacks.onRemoteStream(this.remoteStream);
     };
 
+    pc.onsignalingstatechange = () => rtcLog("signalingState:", pc.signalingState);
+    pc.onicegatheringstatechange = () =>
+      rtcLog("iceGatheringState:", pc.iceGatheringState, "localCandidates:", this.localCandidates);
+
     pc.onicecandidate = ({ candidate }) => {
-      if (!candidate) return;
+      if (!candidate) {
+        rtcLog("local ICE gathering complete, candidates:", this.localCandidates);
+        return;
+      }
+      this.localCandidates += 1;
       this.callbacks.onSignal("ice", {
         roomId: this.roomId,
         candidate: candidate.toJSON() as IcePayload["candidate"],
@@ -139,6 +168,7 @@ export class VoiceCall {
 
     pc.onconnectionstatechange = () => {
       if (this.ended) return;
+      rtcLog("connectionState:", pc.connectionState);
       if (pc.connectionState === "connected") {
         this.callbacks.onState("connected");
         this.startStatsPolling();
@@ -148,6 +178,11 @@ export class VoiceCall {
     pc.oniceconnectionstatechange = () => {
       if (this.ended) return;
       const state = pc.iceConnectionState;
+      rtcLog(
+        "iceConnectionState:", state,
+        "| local candidates:", this.localCandidates,
+        "| remote candidates:", this.remoteCandidates,
+      );
       if (state === "disconnected") {
         this.callbacks.onState("reconnecting");
       } else if (state === "failed") {
@@ -167,9 +202,9 @@ export class VoiceCall {
       }
     };
 
-    // The impolite peer kicks off negotiation, so both sides do not offer
-    // simultaneously on a healthy connection.
-    if (!this.polite) {
+    // Only the caller offers. The callee has already accepted, so it is in
+    // the room and listening before this fires.
+    if (this.initiator) {
       void pc.setLocalDescription().then(() => {
         if (pc.localDescription) {
           this.callbacks.onSignal("offer", {
@@ -217,6 +252,7 @@ export class VoiceCall {
     if (!pc) return;
     try {
       await pc.addIceCandidate(candidate as RTCIceCandidateInit);
+      this.remoteCandidates += 1;
     } catch {
       // Candidates that arrive during rollback are expected to fail; the
       // ignoreOffer flag marks the ones we deliberately dropped.
@@ -305,6 +341,8 @@ export class VoiceCall {
       pc.onnegotiationneeded = null;
       pc.onconnectionstatechange = null;
       pc.oniceconnectionstatechange = null;
+      pc.onsignalingstatechange = null;
+      pc.onicegatheringstatechange = null;
       pc.close();
     }
     this.pc = null;

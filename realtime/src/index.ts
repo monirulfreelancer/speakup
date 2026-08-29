@@ -167,8 +167,49 @@ io.on("connection", (rawSocket) => {
     }
   }
 
+  /*
+   * Is anyone else actually in this room right now?
+   *
+   * Silently relaying into an empty room is what made calls hang forever:
+   * the offer went nowhere and both sides waited. Every call-control event
+   * now checks first and tells the SENDER when the peer is absent, so the
+   * UI can say so instead of spinning.
+   */
+  async function peerPresent(roomId: string): Promise<boolean> {
+    const sockets = await io.in(roomId).fetchSockets();
+    return sockets.some((s) => s.id !== socket.id);
+  }
+
+  async function relayToPeer(
+    roomId: string,
+    event: "call:invite" | "call:accept" | "call:decline" | "call:cancel",
+  ): Promise<void> {
+    if (!(await guardRoom(roomId, event))) return;
+    // The sender must be in the room to hear replies; joining is idempotent.
+    void socket.join(roomId);
+    socket.data.roomId = roomId;
+
+    if (!(await peerPresent(roomId))) {
+      console.log(`[signal] ${event} room=${roomId} user=${user.id} -> peer absent`);
+      socket.emit("call:error", { roomId, code: "peer-absent" });
+      return;
+    }
+    console.log(`[signal] ${event} room=${roomId} user=${user.id}`);
+    socket.to(roomId).emit(event, { roomId });
+  }
+
+  socket.on("call:invite", ({ roomId }) => void relayToPeer(roomId, "call:invite"));
+  socket.on("call:accept", ({ roomId }) => void relayToPeer(roomId, "call:accept"));
+  socket.on("call:decline", ({ roomId }) => void relayToPeer(roomId, "call:decline"));
+  socket.on("call:cancel", ({ roomId }) => void relayToPeer(roomId, "call:cancel"));
+
   socket.on("rtc:offer", async (payload) => {
     if (!(await guardRoom(payload?.roomId, "rtc:offer"))) return;
+    if (!(await peerPresent(payload.roomId))) {
+      console.log(`[signal] rtc:offer room=${payload.roomId} user=${user.id} -> peer absent`);
+      socket.emit("call:error", { roomId: payload.roomId, code: "peer-absent" });
+      return;
+    }
     console.log(`[signal] rtc:offer room=${payload.roomId} user=${user.id}`);
     socket.to(payload.roomId).emit("rtc:offer", payload);
   });

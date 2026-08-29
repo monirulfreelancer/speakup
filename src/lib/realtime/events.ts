@@ -44,6 +44,9 @@ export type RTCIceCandidateLike = {
 
 export type CallEndReason = "hangup" | "failed" | "partner_left";
 
+/** Why a call:error came back: today only the peer being absent. */
+export type CallErrorCode = "peer-absent";
+
 /** client -> server */
 export interface ClientToServerEvents {
   "queue:join": (payload: { allowedLevels?: CefrLevel[] }) => void;
@@ -54,6 +57,13 @@ export interface ClientToServerEvents {
   "rtc:answer": (payload: SdpPayload) => void;
   "rtc:ice": (payload: IcePayload) => void;
   "call:end": (payload: { roomId: string; reason: CallEndReason }) => void;
+  // Ring-before-connect handshake. Nothing touches the microphone or opens a
+  // peer connection until an invite has been accepted, which also guarantees
+  // both sockets are in the room before any SDP is sent.
+  "call:invite": (payload: { roomId: string }) => void;
+  "call:accept": (payload: { roomId: string }) => void;
+  "call:decline": (payload: { roomId: string }) => void;
+  "call:cancel": (payload: { roomId: string }) => void;
 }
 
 /** server -> client */
@@ -70,5 +80,11 @@ export interface ServerToClientEvents {
   "rtc:answer": (payload: SdpPayload) => void;
   "rtc:ice": (payload: IcePayload) => void;
   "call:ended": (payload: { reason: CallEndReason }) => void;
+  "call:invite": (payload: { roomId: string }) => void;
+  "call:accept": (payload: { roomId: string }) => void;
+  "call:decline": (payload: { roomId: string }) => void;
+  "call:cancel": (payload: { roomId: string }) => void;
+  /** Sent back to the SENDER when the other member is not in the room. */
+  "call:error": (payload: { roomId: string; code: CallErrorCode }) => void;
   error: (payload: { code: ErrorCode; message: string }) => void;
 }
