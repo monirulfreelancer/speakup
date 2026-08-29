@@ -71,6 +71,12 @@ export interface ClientToServerEvents {
   "call:accept": (payload: { roomId: string }) => void;
   "call:decline": (payload: { roomId: string }) => void;
   "call:cancel": (payload: { roomId: string }) => void;
+  /**
+   * Leaving a call that never connected: the Leave button, browser back, or
+   * the tab closing. Explicit on purpose — inferring it from the disconnect
+   * handler is what used to end matches during ordinary navigation.
+   */
+  "call:abandon": (payload: { roomId: string }) => void;
 }
 
 /** server -> client */

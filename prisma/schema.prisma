@@ -329,6 +329,9 @@ model Match {
   userBId         String    @map("user_b_id")
   topicId         String?   @map("topic_id")
   startedAt       DateTime  @default(now()) @map("started_at")
+  // Set when the callee accepts. Its absence is what makes "this call was
+  // never answered" knowable, which is the basis of the staleness sweep.
+  answeredAt      DateTime? @map("answered_at")
   endedAt         DateTime? @map("ended_at")
   endReason       String?   @map("end_reason")
   durationSeconds Int       @default(0) @map("duration_seconds")

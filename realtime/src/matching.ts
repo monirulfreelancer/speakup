@@ -186,3 +186,80 @@ export async function loadRingProfile(
     avatarUpdatedAt: rows[0].avatar_updated_at ? new Date(rows[0].avatar_updated_at).toISOString() : null,
   };
 }
+
+/*
+ * STALENESS.
+ *
+ * A Match that nothing ever closes locks its participants out of calling
+ * anyone: startCall sees an "open" row and refuses. Nothing closed them
+ * once the disconnect handler stopped ending matches on navigation (which
+ * it had to stop doing — it was ending matches during ordinary page
+ * transitions), so this is the replacement, defined explicitly rather than
+ * as a side effect of a socket lifecycle.
+ *
+ * Stale means either:
+ *   - never answered and older than NEVER_ANSWERED_MINUTES, or
+ *   - answered, but neither participant has had a connected socket for
+ *     more than OFFLINE_GRACE_SECONDS.
+ *
+ * One UPDATE, no per-row loop: this runs every minute forever.
+ */
+
+const NEVER_ANSWERED_MINUTES = 3;
+const OFFLINE_GRACE_SECONDS = 60;
+
+/** Marks the call as genuinely begun, so the sweep stops treating it as unanswered. */
+export async function markAnswered(roomId: string): Promise<void> {
+  await pool.query(
+    `UPDATE matches SET answered_at = now() WHERE room_id = $1 AND answered_at IS NULL`,
+    [roomId],
+  );
+}
+
+/**
+ * Closes stale matches. `onlineUserIds` comes from the live socket map, so
+ * anyone currently connected is never swept.
+ * @returns how many rows were closed.
+ */
+export async function sweepStaleMatches(onlineUserIds: string[]): Promise<number> {
+  const { rowCount } = await pool.query(
+    `UPDATE matches m
+     SET ended_at = now(),
+         end_reason = 'abandoned',
+         duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM (now() - m.started_at))::int)
+     FROM users ua, users ub
+     WHERE m.ended_at IS NULL
+       AND ua.id = m.user_a_id
+       AND ub.id = m.user_b_id
+       AND (
+         (m.answered_at IS NULL AND m.started_at < now() - ($1 || ' minutes')::interval)
+         OR (
+           m.answered_at IS NOT NULL
+           AND NOT (m.user_a_id = ANY($3::text[]))
+           AND NOT (m.user_b_id = ANY($3::text[]))
+           AND COALESCE(ua.last_seen_at, m.started_at) < now() - ($2 || ' seconds')::interval
+           AND COALESCE(ub.last_seen_at, m.started_at) < now() - ($2 || ' seconds')::interval
+         )
+       )`,
+    [String(NEVER_ANSWERED_MINUTES), String(OFFLINE_GRACE_SECONDS), onlineUserIds],
+  );
+  return rowCount ?? 0;
+}
+
+/**
+ * One-time startup cleanup for rows stuck by the older behaviour: any open,
+ * never-answered Match older than 10 minutes. Idempotent — it only ever
+ * touches rows that are still open, so running it on every boot is safe.
+ */
+export async function cleanupAbandonedOnStartup(): Promise<number> {
+  const { rowCount } = await pool.query(
+    `UPDATE matches
+     SET ended_at = now(),
+         end_reason = 'abandoned',
+         duration_seconds = GREATEST(0, EXTRACT(EPOCH FROM (now() - started_at))::int)
+     WHERE ended_at IS NULL
+       AND answered_at IS NULL
+       AND started_at < now() - interval '10 minutes'`,
+  );
+  return rowCount ?? 0;
+}

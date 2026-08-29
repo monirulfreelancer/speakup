@@ -386,6 +386,28 @@ export function CallScreen(props: Props) {
     };
   }, [beginMedia, clearInviteTimer, finish, props.roomId, props.role, stopRinging, winsGlare]);
 
+  /*
+   * Leaving before the call ever connected — Leave, browser back, or the tab
+   * closing — must close the Match, or it sits open and locks both people
+   * out of calling anyone. Explicit event rather than the disconnect
+   * handler: inferring it from disconnects is what previously ended matches
+   * during ordinary navigation.
+   */
+  useEffect(() => {
+    const abandonIfUnconnected = () => {
+      const phase = phaseRef.current;
+      if (phase !== "outgoing" && phase !== "connecting") return;
+      const socket = getSocket();
+      if (socket.connected) socket.emit("call:abandon", { roomId: props.roomId });
+    };
+
+    window.addEventListener("pagehide", abandonIfUnconnected);
+    return () => {
+      window.removeEventListener("pagehide", abandonIfUnconnected);
+      abandonIfUnconnected();
+    };
+  }, [props.roomId]);
+
   // Teardown on unmount (navigating away mid-call).
   useEffect(() => teardown, [teardown]);
 

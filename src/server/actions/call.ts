@@ -122,7 +122,30 @@ const DECLINE_COOLDOWN_SECONDS = 60;
 
 export type StartCallResult =
   | { ok: true; roomId: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string }
+  /* A genuinely live call: the UI offers to return to it or end it, rather
+     than showing a dead end. */
+  | { ok: false; error: string; busyRoomId: string; busyIsMine: true };
+
+/*
+ * Closes this user's stale matches before any busy check. The realtime
+ * sweep does the same on a timer, but a user pressing Call should not have
+ * to wait up to a minute for it — and the sweep does not run at all if the
+ * realtime service is down.
+ *
+ * Same definition as the sweep: never answered and older than 3 minutes.
+ */
+async function closeStaleMatchesFor(userId: string): Promise<void> {
+  await db.match.updateMany({
+    where: {
+      endedAt: null,
+      answeredAt: null,
+      startedAt: { lt: new Date(Date.now() - 3 * 60 * 1000) },
+      OR: [{ userAId: userId }, { userBId: userId }],
+    },
+    data: { endedAt: new Date(), endReason: "abandoned" },
+  });
+}
 
 export async function startCall(targetUserId: string): Promise<StartCallResult> {
   const session = await auth();
@@ -190,18 +213,29 @@ export async function startCall(targetUserId: string): Promise<StartCallResult> 
     };
   }
 
-  // Busy checks, both directions.
+  // Clear anything stale FIRST, so a dead row from a call that was never
+  // answered cannot lock either side out.
+  await Promise.all([closeStaleMatchesFor(callerId), closeStaleMatchesFor(target.id)]);
+
+  // Busy checks, both directions — now only genuinely live calls remain.
   const [callerBusy, targetBusy] = await Promise.all([
     db.match.findFirst({
       where: { endedAt: null, OR: [{ userAId: callerId }, { userBId: callerId }] },
-      select: { id: true },
+      select: { id: true, roomId: true },
     }),
     db.match.findFirst({
       where: { endedAt: null, OR: [{ userAId: target.id }, { userBId: target.id }] },
       select: { id: true },
     }),
   ]);
-  if (callerBusy) return { ok: false, error: "You are already in a call." };
+  if (callerBusy) {
+    return {
+      ok: false,
+      error: "You're already in a call.",
+      busyRoomId: callerBusy.roomId,
+      busyIsMine: true,
+    };
+  }
   if (targetBusy) return { ok: false, error: `${target.name} is in a call right now.` };
 
   // Topic pitched at the LOWER of the two levels, so the weaker speaker is
@@ -235,4 +269,26 @@ export async function startCall(targetUserId: string): Promise<StartCallResult> 
   });
 
   return { ok: true, roomId: match.roomId };
+}
+
+/** Ends the caller's own live call, for the "End that call" action. */
+export async function endMyCall(): Promise<CallActionResult> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: "Not signed in" };
+
+  const live = await db.match.findFirst({
+    where: { endedAt: null, OR: [{ userAId: session.user.id }, { userBId: session.user.id }] },
+    select: { id: true, startedAt: true },
+  });
+  if (!live) return { ok: true };
+
+  await db.match.update({
+    where: { id: live.id },
+    data: {
+      endedAt: new Date(),
+      endReason: "hangup",
+      durationSeconds: Math.max(0, Math.floor((Date.now() - live.startedAt.getTime()) / 1000)),
+    },
+  });
+  return { ok: true };
 }

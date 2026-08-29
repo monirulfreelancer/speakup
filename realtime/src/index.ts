@@ -6,6 +6,9 @@ import { dbHealthy } from "./db";
 import type { ClientToServerEvents, ServerToClientEvents } from "./events";
 import {
   checkRoomMembership,
+  cleanupAbandonedOnStartup,
+  markAnswered,
+  sweepStaleMatches,
   endMatchByRoom,
   forgetRoomMembership,
   loadOpenMatch,
@@ -244,6 +247,8 @@ io.on("connection", (rawSocket) => {
   socket.on("call:accept", async ({ roomId }) => {
     if (!(await guardRoom(roomId, "call:accept"))) return;
     clearRingTimer(roomId);
+    // From here the sweep must treat this as a real call, not an unanswered one.
+    await markAnswered(roomId).catch(() => {});
     void socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.callActive = true;
@@ -269,6 +274,17 @@ io.on("connection", (rawSocket) => {
     if (callerId) io.to(`user:${callerId}`).emit("call:declined", { roomId });
 
     await endMatchByRoom(roomId, "declined").catch(() => {});
+    forgetRoomMembership(roomId);
+  });
+
+  socket.on("call:abandon", async ({ roomId }) => {
+    if (!(await guardRoom(roomId, "call:abandon"))) return;
+    clearRingTimer(roomId);
+    console.log(`[signal] call:abandon room=${roomId} user=${user.id}`);
+    socket.to(roomId).emit("call:missed", { roomId });
+    void socket.leave(roomId);
+    socket.data.roomId = undefined;
+    await endMatchByRoom(roomId, "cancelled").catch(() => {});
     forgetRoomMembership(roomId);
   });
 
@@ -378,6 +394,33 @@ io.on("connection", (rawSocket) => {
   });
 });
 
+/*
+ * Stale-match sweep. Without it, a Match created by startCall but never
+ * answered stays open forever and permanently blocks its participants from
+ * calling anyone.
+ */
+setInterval(() => {
+  void (async () => {
+    try {
+      const closed = await sweepStaleMatches([...socketsByUser.keys()]);
+      if (closed > 0) console.log(`[sweep] closed ${closed} stale match(es)`);
+    } catch (error) {
+      console.error("[sweep] failed:", error instanceof Error ? error.message : error);
+    }
+  })();
+}, 60_000);
+
 httpServer.listen(PORT, () => {
   console.log(`speakup-realtime listening on :${PORT}`);
+
+  // Clears rows stuck by the older behaviour. Idempotent, so it is safe on
+  // every boot rather than a one-off script somebody has to remember.
+  void cleanupAbandonedOnStartup()
+    .then((closed) => {
+      if (closed > 0) console.log(`[startup] closed ${closed} abandoned match(es)`);
+      else console.log("[startup] no abandoned matches to clean up");
+    })
+    .catch((error) =>
+      console.error("[startup] cleanup failed:", error instanceof Error ? error.message : error),
+    );
 });
